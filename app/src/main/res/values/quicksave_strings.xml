@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="quicksave_channel_name">Quick save</string>
+    <string name="quicksave_channel_desc">Saving your parking spot from the tile, widget or car Bluetooth</string>
+    <string name="quicksave_tile_label">Save parking</string>
+    <string name="quicksave_tile_subtitle_none">Tap to save</string>
+    <string name="quicksave_saved_just_now">Saved just now</string>
+    <string name="quicksave_saved_min_ago">Saved %d min ago</string>
+    <string name="quicksave_saved_h_ago">Saved %d h ago</string>
+    <string name="quicksave_saved_on">Saved %s</string>
+    <string name="quicksave_progress_title">Saving parking spot…</string>
+    <string name="quicksave_progress_text">Getting the best GPS fix</string>
+    <string name="quicksave_saved_title">Parking saved · ±%d m</string>
+    <string name="quicksave_saved_title_approx">Parking saved (approximate) · ±%d m</string>
+    <string name="quicksave_saved_text">Tap Guide me to walk back to your car.</string>
+    <string name="quicksave_action_guide">Guide me</string>
+    <string name="quicksave_failed_title">Couldn\'t save parking</string>
+    <string name="quicksave_failed_text">No GPS fix. Move to open sky and try again.</string>
+    <string name="quicksave_perm_title">Location permission needed</string>
+    <string name="quicksave_perm_text">Open ParkPin to allow location, then save your parking.</string>
+    <string name="quicksave_tap_title">Save your parking spot?</string>
+    <string name="quicksave_tap_text">Tap to save where you are now.</string>
+    <string name="quicksave_car_disc_title">Car disconnected</string>
+    <string name="quicksave_car_disc_text">Tap to save your parking spot here.</string>
+    <string name="quicksave_action_save">Save</string>
+    <string name="quicksave_action_open">Open ParkPin</string>
+    <string name="quicksave_widget_empty">Tap to save parking</string>
+    <string name="quicksave_widget_distance_time">Car: %1$s · saved %2$s</string>
+    <string name="quicksave_widget_time">Car saved %s</string>
+    <string name="quicksave_widget_guide">Guide</string>
+    <string name="quicksave_widget_description">Save your parking spot in one tap and see how far your car is.</string>
+</resources>
