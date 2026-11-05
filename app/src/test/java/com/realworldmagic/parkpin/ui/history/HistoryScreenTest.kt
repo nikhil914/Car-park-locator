@@ -14,6 +14,8 @@ import com.realworldmagic.parkpin.ParkPinApp
 import com.realworldmagic.parkpin.testutil.TestSpots.spot
 import com.realworldmagic.parkpin.ui.theme.ParkPinTheme
 import kotlinx.coroutines.runBlocking
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -58,12 +60,12 @@ class HistoryScreenTest {
         compose.setContent { ParkPinTheme(dynamicColor = false) { HistoryScreen(onGuide = { guided = it }) } }
 
         waitForText("Row C · Floor P2")
-        compose.onNodeWithText("Active").assertIsDisplayed()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Active spot")).assertIsDisplayed()
 
         compose.onNodeWithText("Row C · Floor P2").performClick()
         compose.runOnIdle { assertEquals(true, guided != null) }
 
-        compose.onAllNodesWithContentDescription("Delete spot").onFirst().performClick()
+        compose.onAllNodesWithContentDescription("Delete spot from", substring = true).onFirst().performClick()
         compose.onNodeWithText("Delete this spot?").assertIsDisplayed()
         compose.onNodeWithText("Delete").performClick()
 
