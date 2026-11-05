@@ -19,13 +19,13 @@ dependencyResolutionManagement { repositories { mavenCentral() } }
 rootProject.name = "parkpin-jvm-domain"
 K
 cat > "$W/build.gradle.kts" <<'K'
-plugins { kotlin("jvm") version "2.0.21" }
+plugins { kotlin("jvm") version "2.4.21" }
 java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 tasks.test { testLogging { events("failed"); showStandardStreams = false } }
 K

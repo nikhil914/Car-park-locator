@@ -3,7 +3,7 @@
 [![Android CI](https://github.com/nikhil914/car-park-locator/actions/workflows/android.yml/badge.svg)](https://github.com/nikhil914/car-park-locator/actions/workflows/android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![minSdk 26](https://img.shields.io/badge/minSdk-26-green)
-![targetSdk 35](https://img.shields.io/badge/targetSdk-35-green)
+![targetSdk 36](https://img.shields.io/badge/targetSdk-36-green)
 
 **ParkPin** saves where you parked with one tap and guides you back on foot, **fully offline**.
 It is the first tool in the **Real-World Magic AR Toolbox**: small, private utilities that
@@ -70,23 +70,23 @@ Full details, contracts and algorithms: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 | Concern | Choice |
 |---|---|
-| Language | Kotlin 2.0.21 |
-| Build | Android Gradle Plugin 8.7.3, Gradle 8.14, version catalog (`gradle/libs.versions.toml`) |
-| SDK levels | minSdk 26 (Android 8.0), compileSdk / targetSdk 35 |
-| UI | Jetpack Compose (BOM 2024.12.01), Material 3, Navigation-Compose |
-| Persistence | Room 2.6.1 (KSP), DataStore Preferences 1.1.1 |
-| Location | `play-services-location` 21.3.0 with `LocationManager` GPS fallback |
+| Language | Kotlin 2.4.21 (KSP 2.3.13) |
+| Build | Android Gradle Plugin 9.5.0 (built-in Kotlin), Gradle 9.6.1, version catalog (`gradle/libs.versions.toml`) |
+| SDK levels | minSdk 26 (Android 8.0), compileSdk 37, targetSdk 36 |
+| UI | Jetpack Compose (BOM 2026.09.00), Material 3, Navigation-Compose 2.10.2, Activity 1.13.0, Lifecycle 2.11.0 |
+| Persistence | Room 2.8.5 (KSP2), DataStore Preferences 1.3.0 |
+| Location | `play-services-location` 21.4.0 with `LocationManager` GPS fallback |
 | Compass | `TYPE_ROTATION_VECTOR` + `GeomagneticField` declination |
-| Map | MapLibre Native Android 13.0.2 with the OpenFreeMap "liberty" vector style (no API key), `OfflineManager` regions for offline |
-| AR view | CameraX 1.4.1 preview + Compose overlay |
-| Background work | WorkManager 2.10.0 |
+| Map | MapLibre Native Android 13.7.1 with the OpenFreeMap "liberty" vector style (no API key), `OfflineManager` regions for offline |
+| AR view | CameraX 1.6.2 preview + Compose overlay |
+| Background work | WorkManager 2.12.0, coroutines 1.11.0 |
 | DI | Manual (`AppContainer`) |
-| Tests | JUnit 4 on the JVM for domain code |
+| Tests | JUnit 4 on the JVM for domain code, Robolectric 4.17 (SDK 36) |
 | CI | GitHub Actions ([android.yml](.github/workflows/android.yml), [release.yml](.github/workflows/release.yml)) |
 
 ## Building
 
-Requirements: **JDK 17** and the **Android SDK** (platform 35, build-tools 35).
+Requirements: **JDK 21** (JDK 17 builds the app, but Robolectric needs 21 to run SDK 36 tests) and the **Android SDK** (platform 37, build-tools 36).
 
 ### Android Studio
 
