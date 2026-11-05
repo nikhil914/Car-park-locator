@@ -32,7 +32,15 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.setUseMetric(v) }
     }
     fun setLeadMinutes(v: Int) {
-        viewModelScope.launch { settingsRepository.setMeterReminderLeadMinutes(v) }
+        viewModelScope.launch {
+            settingsRepository.setMeterReminderLeadMinutes(v)
+            // A pending reminder for the active spot follows the new lead time.
+            val spot = repository.observeActiveSpot().first()
+            val expires = spot?.meterExpiresAtMs
+            if (spot != null && expires != null && expires > System.currentTimeMillis()) {
+                reminderScheduler.schedule(spot.id, expires, v)
+            }
+        }
     }
     fun setArEnabled(v: Boolean) {
         viewModelScope.launch { settingsRepository.setArEnabled(v) }

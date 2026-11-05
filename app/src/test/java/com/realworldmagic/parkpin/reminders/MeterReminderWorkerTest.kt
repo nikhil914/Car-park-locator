@@ -46,14 +46,27 @@ class MeterReminderWorkerTest {
             .doWork()
     }
 
+    /** The worker never reminds about spots that are not in Room, so tests insert a real one. */
+    private fun activeSpot(expiresAt: Long): Long = runBlocking {
+        app.container.parkingRepository.saveNewSpot(spot(savedAtMs = 1_000, meterExpiresAtMs = expiresAt))
+    }
+
+    @Test
+    fun skipsDeletedSpot() {
+        runWorker(spotId = 4242, expiresAt = System.currentTimeMillis() + 60_000)
+        assertTrue(notifications.allNotifications.isEmpty())
+    }
+
     private fun Notification.text() = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
     private fun Notification.title() = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
 
     @Test
     fun postsNotificationOnMeterChannel() {
-        val expires = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10) + 30_000
+        // Minutes are rounded up, so 9 min 30 s reads as 10.
+        val expires = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10) - 30_000
+        val id = activeSpot(expires)
 
-        assertEquals(ListenableWorker.Result.success(), runWorker(spotId = 42, expiresAt = expires))
+        assertEquals(ListenableWorker.Result.success(), runWorker(spotId = id, expiresAt = expires))
 
         val posted = notifications.allNotifications.single()
         assertEquals(NotificationChannels.METER_REMINDERS, posted.channelId)
@@ -77,7 +90,8 @@ class MeterReminderWorkerTest {
 
     @Test
     fun expiredMeterUsesExpiredText() {
-        runWorker(spotId = 7, expiresAt = System.currentTimeMillis() - 1_000)
+        val expires = System.currentTimeMillis() - 1_000
+        runWorker(spotId = activeSpot(expires), expiresAt = expires)
         assertEquals(
             "Your parking meter has expired. Tap to walk back.",
             notifications.allNotifications.single().text(),

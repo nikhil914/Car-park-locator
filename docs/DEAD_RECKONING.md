@@ -4,8 +4,10 @@ Underground garages and dense parking structures often have no usable GPS. ParkP
 bridges those gaps with pedestrian dead reckoning: it counts steps and uses the compass
 heading to move a position estimate forward from the last good GPS fix.
 
-Status: the domain logic and the step sensor are ready. The guide screen does not use
-them yet (see "Integrating into guidance" below).
+Status: wired into the guide. `domain/GuidanceTracker.kt` runs raw fixes through
+`AccuracyFilter`, fuses them with PDR and feeds `ArrivalDetector`; `GuideViewModel` drives it
+from one coroutine. Step tracking is opt-in ("Enable step tracking" in the guide). While the
+position is dead-reckoned the guide shows "Estimated (no GPS) ±N m".
 
 ## Pieces
 
@@ -84,8 +86,8 @@ Notes:
 On Android 10 (API 29) and later, step sensors need the **runtime** permission
 `android.permission.ACTIVITY_RECOGNITION`. On API 26–28 they need no permission.
 
-- **Manifest (not yet added).** Add this line to `app/src/main/AndroidManifest.xml`:
-  `<uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />`
+- **Manifest.** `app/src/main/AndroidManifest.xml` declares
+  `<uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />`.
 - **Runtime.** Request `StepSensor.requiredPermission` (null below API 29). For example,
   wrap the indoor mode in `PermissionGate(listOf(it))`.
 - **When the permission is missing.** `stepEvents()` completes immediately and guidance

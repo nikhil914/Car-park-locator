@@ -11,6 +11,7 @@ import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.sensors.BarometerSensor
 import com.realworldmagic.parkpin.sensors.HeadingProvider
 import com.realworldmagic.parkpin.sensors.HeadingProviderFactory
+import com.realworldmagic.parkpin.sensors.StepSensor
 
 /** Manual DI. Everything is lazy so app start stays cheap. */
 class AppContainer(context: Context) {
@@ -26,5 +27,6 @@ class AppContainer(context: Context) {
     /** Alias kept for existing call sites. */
     val compassSensor: HeadingProvider get() = headingProvider
     val barometerSensor: BarometerSensor by lazy { BarometerSensor(appContext) }
+    val stepSensor: StepSensor by lazy { StepSensor(appContext) }
     val meterReminderScheduler: MeterReminderScheduler by lazy { MeterReminderScheduler(appContext) }
 }
