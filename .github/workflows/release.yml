@@ -84,6 +84,11 @@ jobs:
         if: steps.keystore.outputs.signed != 'true'
         run: ./gradlew --no-daemon :app:assembleRelease
 
+      # Without a release keystore, also ship a debug-signed APK so testers can install it.
+      - name: Assemble debug (installable fallback)
+        if: steps.keystore.outputs.signed != 'true'
+        run: ./gradlew --no-daemon :app:assembleDebug
+
       - name: Collect APK
         id: apk
         run: |
@@ -95,12 +100,14 @@ jobs:
             name="parkpin-${GITHUB_REF_NAME}-unsigned.apk"
           fi
           cp "$src" "dist/$name"
-          echo "file=dist/$name" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.keystore.outputs.signed }}" != "true" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk "dist/parkpin-${GITHUB_REF_NAME}-debug.apk"
+          fi
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.apk.outputs.file }}
+          files: dist/*.apk
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
 
