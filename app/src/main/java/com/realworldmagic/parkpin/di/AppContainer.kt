@@ -9,7 +9,8 @@ import com.realworldmagic.parkpin.location.LocationProvider
 import com.realworldmagic.parkpin.location.LocationProviderFactory
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.sensors.BarometerSensor
-import com.realworldmagic.parkpin.sensors.CompassSensor
+import com.realworldmagic.parkpin.sensors.HeadingProvider
+import com.realworldmagic.parkpin.sensors.HeadingProviderFactory
 import com.realworldmagic.parkpin.sensors.StepSensor
 
 /** Manual DI. Everything is lazy so app start stays cheap. */
@@ -20,7 +21,11 @@ class AppContainer(context: Context) {
     val parkingRepository: ParkingRepository by lazy { ParkingRepositoryImpl(database.parkingDao()) }
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(appContext) }
     val locationProvider: LocationProvider by lazy { LocationProviderFactory.create(appContext) }
-    val compassSensor: CompassSensor by lazy { CompassSensor(appContext) }
+    /** Fused orientation (Play Services) when available, else the rotation-vector compass. */
+    val headingProvider: HeadingProvider by lazy { HeadingProviderFactory.create(appContext) }
+
+    /** Alias kept for existing call sites. */
+    val compassSensor: HeadingProvider get() = headingProvider
     val barometerSensor: BarometerSensor by lazy { BarometerSensor(appContext) }
     val stepSensor: StepSensor by lazy { StepSensor(appContext) }
     val meterReminderScheduler: MeterReminderScheduler by lazy { MeterReminderScheduler(appContext) }

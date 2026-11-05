@@ -22,7 +22,6 @@ import com.realworldmagic.parkpin.location.LocationProvider
 import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.sensors.BarometerSensor
-import com.realworldmagic.parkpin.sensors.CompassSensor
 import com.realworldmagic.parkpin.sensors.StepSensor
 import com.realworldmagic.parkpin.ui.navigation.Routes
 import com.realworldmagic.parkpin.ui.util.parkPinContainer
@@ -76,7 +75,7 @@ open class GuideViewModel(
     private val repository: ParkingRepository,
     settingsRepository: SettingsRepository,
     private val locationProvider: LocationProvider,
-    private val compass: CompassSensor,
+    private val compass: com.realworldmagic.parkpin.sensors.HeadingProvider,
     private val reminderScheduler: MeterReminderScheduler,
     spotId: Long,
     cameraMode: Boolean,
