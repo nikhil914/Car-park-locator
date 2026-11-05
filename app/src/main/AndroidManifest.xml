@@ -10,6 +10,14 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Step detector for pedestrian dead reckoning in the guide (runtime permission on API 29+,
+         requested only when the user taps "Enable step tracking"). -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- Meter reminders: exact alarm when the user allows it, windowed alarm otherwise.
+         USE_EXACT_ALARM is reserved for alarm-clock / calendar apps and must not be declared. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Alarms do not survive a reboot: reschedule the active meter reminder after boot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Quick save: foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -128,6 +136,24 @@
                 <action android:name="android.companion.CompanionDeviceService" />
             </intent-filter>
         </service>
+
+        <!-- Meter reminder alarm (explicit PendingIntent from MeterReminderScheduler) -->
+        <receiver
+            android:name=".reminders.MeterAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Re-arms the active meter reminder after reboot, clock changes and exact-alarm grants -->
+        <receiver
+            android:name=".reminders.MeterReminderRescheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Only matters if WorkManager ever runs QuickSaveWorker as a foreground service (API < 31). -->
         <service

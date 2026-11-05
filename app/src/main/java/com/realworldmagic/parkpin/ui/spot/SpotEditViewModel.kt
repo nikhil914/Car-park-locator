@@ -83,11 +83,12 @@ class SpotEditViewModel(
             repository.update(spot)
             val old = s.original?.meterExpiresAtMs
             val new = spot.meterExpiresAtMs
-            if (new != old) {
-                if (old != null) reminderScheduler.cancel(spot.id)
-                if (new != null && new > System.currentTimeMillis()) {
-                    reminderScheduler.schedule(spot.id, new, s.leadMinutes)
-                }
+            // Always (re)schedule while a meter is set: schedule() replaces the previous reminder,
+            // so a changed lead time takes effect even when the expiry itself did not change.
+            if (new != null && new > System.currentTimeMillis()) {
+                reminderScheduler.schedule(spot.id, new, s.leadMinutes)
+            } else if (old != null || new != null) {
+                reminderScheduler.cancel(spot.id)
             }
             onSpotsChanged()
             _state.update { it.copy(original = spot, saved = true) }

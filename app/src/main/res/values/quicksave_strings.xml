@@ -13,6 +13,7 @@
     <string name="quicksave_saved_title">Parking saved · ±%d m</string>
     <string name="quicksave_saved_title_approx">Parking saved (approximate) · ±%d m</string>
     <string name="quicksave_saved_text">Tap Guide me to walk back to your car.</string>
+    <string name="quicksave_saved_text_mock">Mock location detected: this position may not be real.</string>
     <string name="quicksave_action_guide">Guide me</string>
     <string name="quicksave_failed_title">Couldn\'t save parking</string>
     <string name="quicksave_failed_text">No GPS fix. Move to open sky and try again.</string>
