@@ -28,8 +28,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -116,14 +119,14 @@ fun ArGuideScreen(spotId: Long, onBack: () -> Unit) {
         }
         FilledTonalIconButton(
             onClick = onBack,
-            modifier = Modifier.statusBarsPadding().padding(12.dp).size(48.dp),
+            modifier = Modifier.windowInsetsPadding(TopInsets).padding(12.dp).size(48.dp),
         ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
         FilledTonalIconToggleButton(
             checked = sonarOn,
             onCheckedChange = { sonarOn = it },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .statusBarsPadding()
+                .windowInsetsPadding(TopInsets)
                 .padding(12.dp)
                 .size(48.dp)
                 .semantics { stateDescription = if (sonarOn) "On" else "Off" },
@@ -197,7 +200,10 @@ private fun ArContent(spotId: Long, sonarOn: Boolean) {
             val wPx = with(density) { maxWidth.toPx() }
             val hPx = with(density) { maxHeight.toPx() }
             val marginPx = with(density) { 48.dp.toPx() }
-            val fov = ArMath.displayedFov(tanHalf.first, tanHalf.second, wPx, hPx)
+            // tanHalf is portrait-oriented. With targetSdk 36 the portrait lock is ignored on
+            // sw600dp+ displays, so swap the axes when the window is landscape.
+            val (tanH, tanV) = if (wPx > hPx) tanHalf.second to tanHalf.first else tanHalf
+            val fov = ArMath.displayedFov(tanH, tanV, wPx, hPx)
             val heading = g.heading
             val rel = g.relativeDeg
             val dist = g.distanceM
@@ -228,7 +234,7 @@ private fun ArContent(spotId: Long, sonarOn: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
+                .windowInsetsPadding(BottomInsets)
                 .padding(16.dp)
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
@@ -422,6 +428,14 @@ private fun CameraPreview(onCameraBound: (Camera) -> Unit) {
 /** Reads physical sensor size + focal length to estimate FOV; null if unavailable. */
 @SuppressLint("UnsafeOptInUsageError")
 @OptIn(ExperimentalCamera2Interop::class)
+// Edge-to-edge is mandatory at targetSdk 36. safeDrawing also covers side system bars and
+// display cutouts when the screen rotates on large displays.
+private val TopInsets: WindowInsets
+    @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+
+private val BottomInsets: WindowInsets
+    @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+
 private fun readFov(camera: Camera): Pair<Double, Double>? = try {
     val info = Camera2CameraInfo.from(camera.cameraInfo)
     val size = info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)

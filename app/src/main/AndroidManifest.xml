@@ -41,8 +41,12 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.ParkPin"
-        tools:targetApi="35">
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="36">
 
+        <!-- screenOrientation="portrait" applies to phones only. With targetSdk 36, Android 16
+             ignores orientation/resizability locks on displays with smallest width >= 600dp
+             (tablets, unfolded foldables), so every screen must also lay out in landscape. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
