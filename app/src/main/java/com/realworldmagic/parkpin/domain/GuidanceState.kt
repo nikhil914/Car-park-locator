@@ -10,4 +10,6 @@ data class GuidanceState(
     val arrived: Boolean = false,
     val gpsWeak: Boolean = false,
     val compassNeedsCalibration: Boolean = false,
+    /** The current fix came from a mock location provider (developer option / spoofing app). */
+    val mockLocation: Boolean = false,
 )

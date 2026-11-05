@@ -14,13 +14,14 @@ object GuidanceCalculator {
         val distance: Double?
         val bearing: Double?
         if (spot != null && fix != null) {
-            distance = GeoMath.distanceMeters(fix.point, spot.point)
-            bearing = GeoMath.initialBearingDeg(fix.point, spot.point)
+            // NaN coordinates must not leak into the UI as "NaN m" / crash roundToInt().
+            distance = GeoMath.distanceMeters(fix.point, spot.point).takeIf { it.isFinite() }
+            bearing = GeoMath.initialBearingDeg(fix.point, spot.point).takeIf { it.isFinite() && distance != null }
         } else {
             distance = null
             bearing = null
         }
-        val relative = if (bearing != null && heading != null) {
+        val relative = if (bearing != null && heading != null && heading.azimuthDeg.isFinite()) {
             GeoMath.relativeBearingDeg(bearing, heading.azimuthDeg.toDouble())
         } else {
             null
@@ -35,6 +36,7 @@ object GuidanceCalculator {
             arrived = arrived && distance != null,
             gpsWeak = fix != null && fix.accuracyM > gpsWeakThresholdM,
             compassNeedsCalibration = heading?.needsCalibration == true,
+            mockLocation = fix?.isMock == true,
         )
     }
 
