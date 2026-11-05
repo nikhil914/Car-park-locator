@@ -20,7 +20,7 @@ No account. No ads. No analytics. Your parking spots never leave your phone.
 | 📍 | **Offline pin drop** | One tap on *I parked here*. ParkPin takes the best of several GPS fixes (stops early at ≤ 10 m accuracy) and shows you how accurate the pin is. Works in airplane mode. |
 | 🧭 | **Compass guide** | A large arrow points to your car using GPS bearing and the rotation-vector compass (corrected to true north). Shows distance, walking ETA and cardinal direction, and vibrates when you arrive. |
 | 🪄 | **AR guide** | Hold up the phone: a live camera preview with a floating pin over your car and an edge arrow when it is behind you. No ARCore required. |
-| 🗺️ | **Offline map** | OpenStreetMap view (osmdroid) with your position, your car and a straight-line path. Tiles you have viewed are cached for offline use. |
+| 🗺️ | **Offline map** | Vector map (MapLibre + OpenFreeMap) with your position, your car and a straight-line path. Save the ~1 km area around your car for offline use, and list or delete saved areas. |
 | 🕘 | **History** | Past spots with time and notes. Re-guide to any of them or delete them. |
 | 📝 | **Notes, photo, meter reminder** | Add "Level P2, row C", a floor label, a photo of the pillar sign, and a parking-meter timer with a reminder notification before it expires. |
 | 🔒 | **Privacy first** | Everything is stored on-device. Location is used only while the app is open. See [PRIVACY.md](docs/PRIVACY.md). |
@@ -77,7 +77,7 @@ Full details, contracts and algorithms: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 | Persistence | Room 2.8.5 (KSP2), DataStore Preferences 1.3.0 |
 | Location | `play-services-location` 21.4.0 with `LocationManager` GPS fallback |
 | Compass | `TYPE_ROTATION_VECTOR` + `GeomagneticField` declination |
-| Map | osmdroid 6.1.20 (OpenStreetMap, no API key) |
+| Map | MapLibre Native Android 13.7.1 with the OpenFreeMap "liberty" vector style (no API key), `OfflineManager` regions for offline |
 | AR view | CameraX 1.6.2 preview + Compose overlay |
 | Background work | WorkManager 2.12.0, coroutines 1.11.0 |
 | DI | Manual (`AppContainer`) |
@@ -125,7 +125,7 @@ Every feature that needs a missing permission shows an explanation and a way to 
 | `POST_NOTIFICATIONS` (Android 13+) | Parking-meter reminder. | When you set a meter timer |
 | `SCHEDULE_EXACT_ALARM` (optional) | Fire the meter reminder at the exact minute. Falls back to WorkManager timing if not granted. | When you set a meter timer |
 | `VIBRATE` | Haptic pulse when you arrive at your car. | Install time (normal permission) |
-| `INTERNET`, `ACCESS_NETWORK_STATE` | Download OpenStreetMap tiles for the map view, only when online. Everything else works without network. | Install time (normal permission) |
+| `INTERNET`, `ACCESS_NETWORK_STATE` | Download OpenFreeMap vector tiles for the map view and saved offline areas, only when online. Everything else works without network. | Install time (normal permission) |
 
 ## Roadmap
 
@@ -155,8 +155,13 @@ ParkPin is released under the [MIT License](LICENSE). Copyright (c) 2026 nikhil9
 
 ## Map data attribution
 
-Map tiles and data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors,
-available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/).
-The in-app map shows this attribution. Tile usage follows the
-[OSM Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/); heavy users
-should configure their own tile server.
+Map tiles are served by [OpenFreeMap](https://openfreemap.org) (© OpenMapTiles), built from
+data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the
+[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). The in-app map always
+shows "OpenFreeMap © OpenMapTiles © OpenStreetMap contributors", and MapLibre's (i) button lists
+the style's sources. OpenFreeMap needs no API key and allows offline use; ParkPin keeps each saved
+area to about 1 km around the car (zoom 14-17). The style URL is a single constant
+(`MapStyle.STYLE_URL` in `ui/map/OfflineRegions.kt`); heavy users should self-host.
+ParkPin never downloads offline areas from `tile.openstreetmap.org`, whose usage policy forbids it.
+
+The map is rendered by [MapLibre Native](https://github.com/maplibre/maplibre-native) (BSD-2-Clause).
