@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.cos
@@ -35,7 +37,7 @@ import kotlin.math.sin
 fun CompassCalibrationDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Calibrate compass") },
+        title = { Text("Calibrate compass", modifier = Modifier.semantics { heading() }) },
         text = {
             Column {
                 FigureEightAnimation(Modifier.fillMaxWidth().height(160.dp))
@@ -51,8 +53,13 @@ fun CompassCalibrationDialog(onDismiss: () -> Unit) {
     )
 }
 
+/** Figure-8 hint. With system animations off (reduce motion) a static frame is drawn. */
 @Composable
 fun FigureEightAnimation(modifier: Modifier = Modifier) {
+    if (rememberReduceMotion()) {
+        FigureEightFrame(modifier, t = (PI / 4).toFloat())
+        return
+    }
     val transition = rememberInfiniteTransition(label = "fig8")
     val t by transition.animateFloat(
         initialValue = 0f,
@@ -60,6 +67,11 @@ fun FigureEightAnimation(modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
         label = "t",
     )
+    FigureEightFrame(modifier, t)
+}
+
+@Composable
+private fun FigureEightFrame(modifier: Modifier, t: Float) {
     val trail = MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
     val phone = MaterialTheme.colorScheme.primary
     Canvas(modifier) {

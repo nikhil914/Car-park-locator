@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +57,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -114,7 +117,7 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Spot details") },
+                title = { Text("Spot details", modifier = Modifier.semantics { heading() }) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
                     ui.toSpot()?.let { spot ->
@@ -151,7 +154,7 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Text("Photo", style = MaterialTheme.typography.titleMedium)
+            Text("Photo", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             val photo = ui.photoUri
             if (photo != null) {
                 val bitmap by produceState<ImageBitmap?>(null, photo) {
@@ -166,28 +169,37 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(modifier = Modifier.heightIn(min = 48.dp), onClick = {
                     val uri = newPhotoUri(context, ui.original?.id ?: 0L)
                     pendingPhoto = uri.toString()
                     takePicture.launch(uri)
                 }) {
                     Icon(Icons.Filled.PhotoCamera, null); Spacer(Modifier.width(6.dp))
-                    Text(if (photo == null) "Take photo" else "Retake")
+                    Text(if (photo == null) "Take photo" else "Retake photo")
                 }
                 if (photo != null) {
-                    OutlinedButton(onClick = { vm.setPhoto(null) }) {
-                        Icon(Icons.Filled.Delete, null); Spacer(Modifier.width(6.dp)); Text("Remove")
+                    OutlinedButton(modifier = Modifier.heightIn(min = 48.dp), onClick = { vm.setPhoto(null) }) {
+                        Icon(Icons.Filled.Delete, null); Spacer(Modifier.width(6.dp)); Text("Remove photo")
                     }
                 }
             }
 
-            Text("Parking meter", style = MaterialTheme.typography.titleMedium)
+            Text("Parking meter", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             ui.meterExpiresAtMs?.let { exp ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MeterCountdownChip(exp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("until ${formatTime(exp)}", style = MaterialTheme.typography.bodyMedium)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    MeterCountdownChip(exp, modifier = Modifier.align(Alignment.CenterVertically))
+                    Text(
+                        "until ${formatTime(exp)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.align(Alignment.CenterVertically),
+                    )
                 }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -196,11 +208,25 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
                         selected = false,
                         onClick = { vm.setMeterMinutes(min); askNotificationsIfNeeded() },
                         label = { Text(if (min < 60) "$min min" else "${min / 60} h") },
+                        modifier = Modifier.semantics {
+                            contentDescription = if (min < 60) "Set meter to $min minutes" else
+                                "Set meter to ${min / 60} hour" + if (min / 60 == 1) "" else "s"
+                        },
                     )
                 }
-                FilterChip(selected = false, onClick = { customDialog = true }, label = { Text("Custom") })
+                FilterChip(
+                    selected = false,
+                    onClick = { customDialog = true },
+                    label = { Text("Custom") },
+                    modifier = Modifier.semantics { contentDescription = "Set custom meter time" },
+                )
                 if (ui.meterExpiresAtMs != null) {
-                    FilterChip(selected = false, onClick = vm::clearMeter, label = { Text("No meter") })
+                    FilterChip(
+                        selected = false,
+                        onClick = vm::clearMeter,
+                        label = { Text("No meter") },
+                        modifier = Modifier.semantics { contentDescription = "Remove meter timer" },
+                    )
                 }
             }
             Text(
@@ -210,7 +236,7 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
             )
 
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { vm.save() }, modifier = Modifier.fillMaxWidth().height(52.dp), enabled = ui.original != null) {
+            Button(onClick = { vm.save() }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = ui.original != null) {
                 Text("Save")
             }
         }
@@ -221,7 +247,7 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
         val minutes = text.toIntOrNull()?.takeIf { it in 1..1440 }
         AlertDialog(
             onDismissRequest = { customDialog = false },
-            title = { Text("Meter time") },
+            title = { Text("Meter time", modifier = Modifier.semantics { heading() }) },
             text = {
                 OutlinedTextField(
                     value = text,

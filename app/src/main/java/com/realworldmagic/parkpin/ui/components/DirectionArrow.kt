@@ -16,12 +16,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
  * Canvas-drawn navigation arrow. [rotationDeg] is the relative bearing (0 = straight ahead,
- * positive = clockwise). Rotation is animated along the shortest path so 359 -> 1 does not spin.
+ * positive = clockwise). Rotation is animated along the shortest path so 359 -> 1 does not spin;
+ * with system animations turned off (reduce motion) it snaps instead.
+ *
+ * The arrow is decorative unless [contentDescription] is given (screens usually announce the
+ * direction in a throttled live region instead).
  */
 @Composable
 fun DirectionArrow(
@@ -30,7 +36,9 @@ fun DirectionArrow(
     size: Dp = 240.dp,
     color: Color = MaterialTheme.colorScheme.primary,
     ringColor: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f),
+    contentDescription: String? = null,
 ) {
+    val reduceMotion = rememberReduceMotion()
     val anim = remember { Animatable(rotationDeg ?: 0f) }
     LaunchedEffect(rotationDeg) {
         if (rotationDeg == null) return@LaunchedEffect
@@ -38,10 +46,17 @@ fun DirectionArrow(
         var delta = (rotationDeg - current) % 360f
         if (delta > 180f) delta -= 360f
         if (delta < -180f) delta += 360f
+        if (reduceMotion) {
+            anim.snapTo(current + delta)
+            return@LaunchedEffect
+        }
         anim.animateTo(current + delta, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow))
     }
     val active = rotationDeg != null
-    Canvas(modifier.size(size)) {
+    val semanticsModifier = if (contentDescription != null) {
+        Modifier.semantics { this.contentDescription = contentDescription }
+    } else Modifier
+    Canvas(modifier.size(size).then(semanticsModifier)) {
         val w = this.size.width
         val h = this.size.height
         val c = Offset(w / 2f, h / 2f)
