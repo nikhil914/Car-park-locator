@@ -10,6 +10,7 @@ import com.realworldmagic.parkpin.domain.GeoMath
 import com.realworldmagic.parkpin.domain.GeoPoint
 import com.realworldmagic.parkpin.domain.Heading
 import com.realworldmagic.parkpin.domain.HeadingSmoother
+import com.realworldmagic.parkpin.domain.OrientationMath
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.conflate
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot
-import kotlin.math.asin
 
 /**
  * True-north compass.
@@ -27,9 +27,13 @@ import kotlin.math.asin
  * Heading is smoothed (circular exponential, alpha 0.15). The magnetometer's accuracy is reported
  * in [Heading.accuracy] so the UI can show a figure-8 calibration prompt.
  *
- * Assumes the activity is in portrait (natural) orientation.
+ * Flat mode assumes the activity is in portrait (natural) orientation. Camera mode derives the
+ * camera azimuth / elevation / roll from the full rotation matrix ([OrientationMath.cameraPose]),
+ * so it also works rolled or in landscape.
+ *
+ * Fallback [HeadingProvider] when Google's FusedOrientationProvider is not available.
  */
-class CompassSensor(context: Context) {
+class CompassSensor(context: Context) : HeadingProvider {
     private val sensorManager = context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val rotationVector: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -38,13 +42,13 @@ class CompassSensor(context: Context) {
     @Volatile
     private var declinationDeg: Float = 0f
 
-    val isAvailable: Boolean
+    override val isAvailable: Boolean
         get() = rotationVector != null || (accelerometer != null && magnetometer != null)
 
     val usesRotationVector: Boolean get() = rotationVector != null
 
     /** Updates magnetic declination from a location (call whenever a fix arrives). */
-    fun setLastKnownLocation(point: GeoPoint, altitudeM: Double? = null, timeMs: Long = System.currentTimeMillis()) {
+    override fun setLastKnownLocation(point: GeoPoint, altitudeM: Double?, timeMs: Long) {
         if (!point.isValid) return
         declinationDeg = GeomagneticField(
             point.lat.toFloat(),
@@ -54,41 +58,39 @@ class CompassSensor(context: Context) {
         ).declination
     }
 
-    /** Heading for a phone held flat-ish in front of the user (map/compass screen). */
-    fun headingUpdates(): Flow<Heading> = headingUpdates(cameraMode = false)
-
     /**
-     * @param cameraMode true when the phone is held upright looking through the back camera:
-     *   azimuth is the camera direction and [Heading.pitchDeg] is the camera elevation above the
-     *   horizon (positive = tilted up). When false, azimuth follows the top of the phone, switching
-     *   automatically to the camera axis when the phone is tilted near-vertical.
+     * @param cameraMode true when the phone is held up looking through the back camera:
+     *   azimuth is the camera direction, [Heading.pitchDeg] the camera elevation above the
+     *   horizon (positive = tilted up) and [Heading.rollDeg] the screen roll. When false, azimuth
+     *   follows the top of the phone, switching automatically to the camera axis when the phone
+     *   is tilted near-vertical.
      */
-    fun headingUpdates(cameraMode: Boolean): Flow<Heading> = callbackFlow {
+    override fun headingUpdates(cameraMode: Boolean): Flow<Heading> = callbackFlow {
         if (!isAvailable) {
             close()
             return@callbackFlow
         }
         val smoother = HeadingSmoother(alpha = 0.15)
         val rotation = FloatArray(9)
-        val remapped = FloatArray(9)
+        val rotationD = DoubleArray(9)
         val orientation = FloatArray(3)
         val gravity = FloatArray(3)
         val geomagnetic = FloatArray(3)
         var haveGravity = false
         var haveMagnetic = false
         var magAccuracy = SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM
+        var accuracyDeg: Float? = null
 
         fun emitFromRotation(accuracy: Int) {
             val azimuthRad: Double
             val pitchDeg: Float
             val rollDeg: Float
             if (cameraMode) {
-                SensorManager.remapCoordinateSystem(rotation, SensorManager.AXIS_X, SensorManager.AXIS_Z, remapped)
-                SensorManager.getOrientation(remapped, orientation)
-                azimuthRad = orientation[0].toDouble()
-                // Camera (-Z) elevation: asin of its world-up component (rotation[8] is up-component of +Z).
-                pitchDeg = Math.toDegrees(asin((-rotation[8]).toDouble().coerceIn(-1.0, 1.0))).toFloat()
-                rollDeg = Math.toDegrees(orientation[2].toDouble()).toFloat()
+                for (i in 0 until 9) rotationD[i] = rotation[i].toDouble()
+                val pose = OrientationMath.cameraPose(rotationD)
+                azimuthRad = Math.toRadians(pose.azimuthDeg)
+                pitchDeg = pose.elevationDeg.toFloat()
+                rollDeg = pose.rollDeg.toFloat()
             } else {
                 SensorManager.getOrientation(rotation, orientation)
                 pitchDeg = Math.toDegrees(orientation[1].toDouble()).toFloat()
@@ -107,7 +109,7 @@ class CompassSensor(context: Context) {
             val magneticDeg = Math.toDegrees(azimuthRad)
             val trueDeg = GeoMath.normalizeDeg(magneticDeg + declinationDeg)
             val smoothed = smoother.update(trueDeg)
-            trySend(Heading(smoothed.toFloat(), pitchDeg, rollDeg, minOf(accuracy, magAccuracy)))
+            trySend(Heading(smoothed.toFloat(), pitchDeg, rollDeg, minOf(accuracy, magAccuracy), accuracyDeg))
         }
 
         val listener = object : SensorEventListener {
@@ -115,6 +117,10 @@ class CompassSensor(context: Context) {
                 when (event.sensor.type) {
                     Sensor.TYPE_ROTATION_VECTOR -> {
                         SensorManager.getRotationMatrixFromVector(rotation, event.values)
+                        // values[4]: estimated heading accuracy (rad), -1 / absent when unknown.
+                        accuracyDeg = event.values.getOrNull(4)
+                            ?.takeIf { it.isFinite() && it >= 0f }
+                            ?.let { Math.toDegrees(it.toDouble()).toFloat() }
                         // Rotation vector accuracy is unreliable on many devices; rely on the magnetometer's.
                         emitFromRotation(SensorManager.SENSOR_STATUS_ACCURACY_HIGH)
                     }
