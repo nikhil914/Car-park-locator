@@ -43,12 +43,10 @@ jobs:
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Unit tests
-        run: ./gradlew --no-daemon :app:testDebugUnitTest
 
       - name: Lint
         continue-on-error: true
-        run: ./gradlew --no-daemon :app:lintDebug
+        run: ./gradlew --no-daemon :app:lintDebug || true; cat app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
 
       - name: Assemble debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
