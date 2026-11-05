@@ -11,6 +11,18 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Quick save: foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Car Bluetooth auto-save -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- CompanionDeviceManager presence (API 31+/33+); both are normal (install-time) permissions -->
+    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND" />
+    <uses-feature android:name="android.software.companion_device_setup" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
@@ -54,5 +66,73 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Quick save foreground service. shortService is the API 34+ fallback type used only
+             to fulfil startForeground() when the location type is refused. -->
+        <service
+            android:name=".quicksave.QuickSaveService"
+            android:exported="false"
+            android:foregroundServiceType="location|shortService" />
+
+        <!-- Invisible trampoline so the tile start counts as "visible activity" (while-in-use location). -->
+        <activity
+            android:name=".quicksave.QuickSaveTrampolineActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Quick Settings tile -->
+        <service
+            android:name=".quicksave.ParkTileService"
+            android:exported="true"
+            android:icon="@drawable/quicksave_ic_car"
+            android:label="@string/quicksave_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Home-screen widget -->
+        <receiver
+            android:name=".quicksave.ParkWidgetProvider"
+            android:exported="false"
+            android:label="@string/quicksave_tile_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quicksave_widget_info" />
+        </receiver>
+
+        <!-- Car Bluetooth disconnect (exempt implicit broadcast; needs BLUETOOTH_CONNECT on 31+) -->
+        <receiver
+            android:name=".quicksave.BluetoothCarDisconnectReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- CompanionDeviceManager presence observer (bound by the system on API 31+) -->
+        <service
+            android:name=".quicksave.CarCompanionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_COMPANION_DEVICE_SERVICE">
+            <intent-filter>
+                <action android:name="android.companion.CompanionDeviceService" />
+            </intent-filter>
+        </service>
+
+        <!-- Only matters if WorkManager ever runs QuickSaveWorker as a foreground service (API < 31). -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="location"
+            tools:node="merge" />
     </application>
 </manifest>
