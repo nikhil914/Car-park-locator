@@ -95,6 +95,8 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                 trailingContent = { Switch(checked = s.keepScreenOn, onCheckedChange = vm::setKeepScreenOn) },
             )
             HorizontalDivider()
+            QuickSaveSettingsSection(showMessage = { msg -> scope.launch { snackbar.showSnackbar(msg) } })
+            HorizontalDivider()
             ListItem(
                 leadingContent = { Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error) },
                 headlineContent = { Text("Delete all history") },

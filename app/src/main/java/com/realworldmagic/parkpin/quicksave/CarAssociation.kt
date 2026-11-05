@@ -44,6 +44,10 @@ object CarAssociation {
 
     /** Opt in with a device picked from [bondedDevices]. */
     fun chooseCar(context: Context, candidate: CarCandidate) {
+        // Switching cars: drop the previous car's CDM association/presence observation, otherwise
+        // its stored association id keeps matching in CarCompanionService and the old car would
+        // still trigger auto-save.
+        if (!QuickSavePrefs.matchesCar(context, candidate.address)) clearCar(context)
         QuickSavePrefs.setCar(context, candidate.address, candidate.name)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // If an existing CDM association matches, start observing it too.
@@ -114,6 +118,13 @@ object CarAssociation {
                     return
                 }
                 val name = associationInfo.displayName?.toString() ?: address
+                val previousId = QuickSavePrefs.cdmAssociationId(app)
+                if (previousId != associationInfo.id &&
+                    (previousId >= 0 || !QuickSavePrefs.matchesCar(app, address))
+                ) {
+                    // Replacing another car: release its association first (see chooseCar).
+                    clearCar(app)
+                }
                 QuickSavePrefs.setCar(app, address, name)
                 QuickSavePrefs.setCdmAssociationId(app, associationInfo.id)
                 startObserving(app, cdm, associationInfo)
