@@ -63,7 +63,7 @@ open class GuideViewModel(
     private val repository: ParkingRepository,
     settingsRepository: SettingsRepository,
     private val locationProvider: LocationProvider,
-    private val compass: CompassSensor,
+    private val compass: com.realworldmagic.parkpin.sensors.HeadingProvider,
     private val reminderScheduler: MeterReminderScheduler,
     spotId: Long,
     cameraMode: Boolean,
