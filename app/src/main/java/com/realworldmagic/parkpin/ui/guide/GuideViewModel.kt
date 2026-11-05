@@ -29,8 +29,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -69,12 +69,13 @@ open class GuideViewModel(
         else repository.observeSpot(spotId)
 
     private val fixFlow: Flow<LocationFix?> = locationProvider.locationUpdates(1000L)
+        .onEach { compass.setLastKnownLocation(it.point, it.altitudeM, it.timeMs) }
         .map<LocationFix, LocationFix?> { it }
         .onStart { emit(null) }
         .catch { emit(null) }
 
     private val headingFlow: Flow<Heading?> =
-        (if (compass.isAvailable) compass.headingUpdates(cameraMode) else emptyFlow())
+        (if (compass.isAvailable) compass.headingUpdates(cameraMode) else emptyFlow<Heading>())
             .map<Heading, Heading?> { it }
             .onStart { emit(null) }
             .catch { emit(null) }
@@ -106,7 +107,7 @@ open class GuideViewModel(
         val spot = state.value.guidance.spot
         viewModelScope.launch {
             if (spot?.meterExpiresAtMs != null) reminderScheduler.cancel(spot.id)
-            if (spot?.isActive != false) repository.clearActive()
+            if (spot?.isActive == true) repository.clearActive()
             onDone()
         }
     }

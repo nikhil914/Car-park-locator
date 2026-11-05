@@ -301,7 +301,7 @@ private fun ParkButton(
         ) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.background(Brush.linearGradient(listOf(primary, secondary))),
+                modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(primary, secondary))),
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     if (capturing) {

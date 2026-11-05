@@ -141,13 +141,16 @@ class CompassSensor(context: Context) {
         }
 
         val rate = SensorManager.SENSOR_DELAY_UI
-        if (rotationVector != null) {
-            sensorManager.registerListener(listener, rotationVector, rate)
+        val rv = rotationVector
+        val acc = accelerometer
+        val mag = magnetometer
+        if (rv != null) {
+            sensorManager.registerListener(listener, rv, rate)
             // Magnetometer only for its accuracy (calibration prompt).
-            magnetometer?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
-        } else {
-            sensorManager.registerListener(listener, accelerometer, rate)
-            sensorManager.registerListener(listener, magnetometer, rate)
+            mag?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        } else if (acc != null && mag != null) {
+            sensorManager.registerListener(listener, acc, rate)
+            sensorManager.registerListener(listener, mag, rate)
         }
         awaitClose { sensorManager.unregisterListener(listener) }
     }.conflate()

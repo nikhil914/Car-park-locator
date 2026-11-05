@@ -41,7 +41,7 @@ class MapViewModel(
     private val spotFlow = if (spotId == Routes.ACTIVE_SPOT || spotId <= 0) repository.observeActiveSpot()
     else repository.observeSpot(spotId)
 
-    private val fixFlow = (if (locationAllowed) locationProvider.locationUpdates(2000L) else kotlinx.coroutines.flow.emptyFlow())
+    private val fixFlow = (if (locationAllowed) locationProvider.locationUpdates(2000L) else kotlinx.coroutines.flow.emptyFlow<LocationFix>())
         .map<LocationFix, LocationFix?> { it }
         .onStart { emit(null) }
         .catch { emit(null) }

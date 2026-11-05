@@ -38,7 +38,7 @@ class HistoryViewModel(
     locationAllowed: Boolean,
 ) : ViewModel() {
 
-    private val fixFlow = (if (locationAllowed) locationProvider.locationUpdates(5000L) else emptyFlow())
+    private val fixFlow = (if (locationAllowed) locationProvider.locationUpdates(5000L) else emptyFlow<LocationFix>())
         .map<LocationFix, LocationFix?> { it }
         .onStart { emit(null) }
         .catch { emit(null) }

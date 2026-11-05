@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Spot photos (pillar sign etc.) kept in app-private storage. -->
+    <files-path name="photos" path="photos/" />
+    <!-- Temporary camera captures before they are kept. -->
+    <cache-path name="camera_cache" path="camera/" />
+    <!-- Exports (share spot / data export). -->
+    <cache-path name="exports" path="exports/" />
+</paths>

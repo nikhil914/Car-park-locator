@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ParkPin</string>
+    <string name="channel_meter_reminders_name">Parking meter reminders</string>
+    <string name="channel_meter_reminders_description">Alerts shortly before your parking meter expires</string>
+    <string name="meter_reminder_title">Parking meter expiring</string>
+    <plurals name="meter_reminder_text">
+        <item quantity="one">Your meter expires in %d minute. Tap to walk back.</item>
+        <item quantity="other">Your meter expires in %d minutes. Tap to walk back.</item>
+    </plurals>
+    <string name="meter_reminder_text_expired">Your parking meter has expired. Tap to walk back.</string>
+</resources>
