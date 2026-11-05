@@ -1,0 +1,2 @@
+# osmdroid
+-dontwarn org.osmdroid.**
