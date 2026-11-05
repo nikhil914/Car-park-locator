@@ -29,7 +29,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -44,7 +43,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import com.realworldmagic.parkpin.domain.SpokenText
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -64,16 +76,21 @@ fun HistoryScreen(onGuide: (Long) -> Unit) {
     val ui by vm.state.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<ParkingSpot?>(null) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("History") }) }) { padding ->
+    Scaffold(topBar = { TopAppBar(title = { Text("History", modifier = Modifier.semantics { heading() }) }) }) { padding ->
         if (ui.loaded && ui.spots.isEmpty()) {
             Column(
-                Modifier.fillMaxSize().padding(padding).padding(32.dp),
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(32.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(Icons.Filled.History, null, modifier = Modifier.size(72.dp), tint = MaterialTheme.colorScheme.secondary)
                 Spacer(Modifier.height(12.dp))
-                Text("No parking history yet", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "No parking history yet",
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics { heading() },
+                )
                 Text(
                     "Spots you save appear here so you can find your way back again.",
                     textAlign = TextAlign.Center,
@@ -100,7 +117,7 @@ fun HistoryScreen(onGuide: (Long) -> Unit) {
                                     .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp))
                                     .padding(horizontal = 20.dp),
                                 contentAlignment = Alignment.CenterEnd,
-                            ) { Icon(Icons.Filled.Delete, "Delete", tint = MaterialTheme.colorScheme.onErrorContainer) }
+                            ) { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.onErrorContainer) }
                         },
                     ) {
                         HistoryRow(
@@ -137,12 +154,29 @@ private fun HistoryRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val savedAt = formatDateTime(spot.savedAtMs)
     ListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp))
-            .clickable(onClickLabel = "Guide to this spot", onClick = onClick),
+            .heightIn(min = 56.dp)
+            .clickable(onClickLabel = "guide to this spot", role = Role.Button, onClick = onClick)
+            .semantics {
+                if (spot.isActive) stateDescription = "Active spot"
+                // Swipe-to-delete is not reachable with TalkBack: expose it as an action too.
+                customActions = listOf(CustomAccessibilityAction("Delete spot") { onDelete(); true })
+            },
+        overlineContent = if (spot.isActive) {
+            {
+                Text(
+                    "ACTIVE",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
+            }
+        } else null,
         leadingContent = {
             Icon(
                 if (spot.isActive) Icons.Filled.DirectionsCar else Icons.Filled.Navigation,
@@ -150,23 +184,27 @@ private fun HistoryRow(
                 tint = if (spot.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
-        headlineContent = { Text(formatDateTime(spot.savedAtMs)) },
+        headlineContent = { Text("Parked $savedAt") },
         supportingContent = {
             val parts = listOfNotNull(
                 spot.note.takeIf { it.isNotBlank() },
                 spot.floorLabel?.takeIf { it.isNotBlank() }?.let { "Floor $it" },
                 spot.address,
             )
-            if (parts.isNotEmpty()) Text(parts.joinToString(" · "), maxLines = 2)
+            if (parts.isNotEmpty()) Text(parts.joinToString(" · "), maxLines = 3, overflow = TextOverflow.Ellipsis)
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (spot.isActive) {
-                    SuggestionChip(onClick = onClick, label = { Text("Active") })
-                    Spacer(Modifier.width(4.dp))
+                distance?.let {
+                    Text(
+                        GeoMath.formatDistance(it, metric),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        modifier = Modifier.semantics { contentDescription = SpokenText.distance(it, metric) + " away" },
+                    )
                 }
-                distance?.let { Text(GeoMath.formatDistance(it, metric), style = MaterialTheme.typography.labelLarge) }
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Delete spot") }
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Delete spot from $savedAt") }
             }
         },
     )
