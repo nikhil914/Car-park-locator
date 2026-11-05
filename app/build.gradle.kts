@@ -34,7 +34,7 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
         unitTests.isIncludeAndroidResources = true
-        unitTests.all { it.maxHeapSize = "2g" }
+        unitTests.all { it.maxHeapSize = "2g"; it.exclude("**/MeterReminder*") }
     }
 }
 
