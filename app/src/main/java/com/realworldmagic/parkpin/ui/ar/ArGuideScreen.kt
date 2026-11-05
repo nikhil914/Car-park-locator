@@ -266,7 +266,7 @@ private fun CameraPreview(onCameraBound: (Camera) -> Unit) {
             try {
                 val p = future.get()
                 provider = p
-                val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+                val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
                 p.unbindAll()
                 val camera = p.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview)
                 onCameraBound(camera)
