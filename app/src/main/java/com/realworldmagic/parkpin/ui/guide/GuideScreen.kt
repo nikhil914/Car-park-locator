@@ -1,5 +1,7 @@
 package com.realworldmagic.parkpin.ui.guide
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -23,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Layers
@@ -37,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -70,6 +74,11 @@ import com.realworldmagic.parkpin.ui.components.GpsStatusChip
 import com.realworldmagic.parkpin.ui.components.LocationPermissions
 import com.realworldmagic.parkpin.ui.components.MeterCountdownChip
 import com.realworldmagic.parkpin.ui.components.PermissionGate
+import com.realworldmagic.parkpin.ui.components.StatusColors
+import com.realworldmagic.parkpin.ui.components.StatusPill
+import com.realworldmagic.parkpin.domain.SpokenText
+import com.realworldmagic.parkpin.sensors.StepSensor
+import com.realworldmagic.parkpin.ui.components.hasAnyPermission
 import com.realworldmagic.parkpin.ui.theme.NumericStyle
 import com.realworldmagic.parkpin.ui.util.KeepScreenOn
 import com.realworldmagic.parkpin.ui.util.vibrate
@@ -140,6 +149,16 @@ private fun GuideContent(
 
     KeepScreenOn(ui.settings.keepScreenOn)
 
+    // ACTIVITY_RECOGNITION (API 29+) is requested only when the user taps "Enable step tracking".
+    val stepPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> vm.setStepTracking(granted) }
+    fun enableStepTracking() {
+        val permission = StepSensor.requiredPermission
+        if (permission == null || hasAnyPermission(context, listOf(permission))) vm.setStepTracking(true)
+        else stepPermissionLauncher.launch(permission)
+    }
+
     var calibrationDismissed by rememberSaveable { mutableStateOf(false) }
     var showCalibration by remember { mutableStateOf(false) }
     LaunchedEffect(g.compassNeedsCalibration) {
@@ -171,13 +190,36 @@ private fun GuideContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GpsStatusChip(g.fix?.accuracyM)
-            AccuracyBadge(g.fix?.accuracyM, metric)
+            val acc = g.fix?.accuracyM
+            if (ui.positionEstimated && acc != null) {
+                EstimatedBadge(acc, metric)
+            } else {
+                GpsStatusChip(acc)
+                AccuracyBadge(acc, metric)
+            }
         }
         g.spot?.meterExpiresAtMs?.let { MeterCountdownChip(it) }
 
-        AnimatedVisibility(g.gpsWeak, enter = fadeIn(), exit = fadeOut()) {
+        AnimatedVisibility(g.mockLocation, enter = fadeIn(), exit = fadeOut()) {
+            WarningCard("Mock location detected. Directions may not match where you really are.")
+        }
+        AnimatedVisibility(g.gpsWeak && !ui.positionEstimated, enter = fadeIn(), exit = fadeOut()) {
             WarningCard("GPS signal is weak. Move to open sky for a better fix.")
+        }
+        AnimatedVisibility(ui.stepTrackingAvailable && !ui.stepTrackingEnabled && !g.arrived) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
+                OutlinedButton(onClick = { enableStepTracking() }) {
+                    Icon(Icons.AutoMirrored.Filled.DirectionsWalk, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Enable step tracking")
+                }
+                Text(
+                    "Keeps guiding by counting steps when GPS drops, e.g. underground. Steps stay on this phone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
         AnimatedVisibility(!ui.compassAvailable) {
             WarningCard("No compass on this device. Arrow shows direction relative to north.")
@@ -304,6 +346,14 @@ private fun FloorHintCard(hint: FloorHint) {
             }
         }
     }
+}
+
+/** "Estimated (no GPS) ±N m" pill shown while guidance runs on dead reckoning. */
+@Composable
+private fun EstimatedBadge(accuracyM: Float, metric: Boolean) {
+    val label = "Estimated (no GPS) ±" + GeoMath.formatDistance(accuracyM.toDouble(), metric)
+    val spoken = "Estimated position, no GPS, within " + SpokenText.distance(accuracyM.toDouble(), metric)
+    StatusPill(label, Icons.AutoMirrored.Filled.DirectionsWalk, StatusColors.fair(), spokenLabel = spoken)
 }
 
 @Composable

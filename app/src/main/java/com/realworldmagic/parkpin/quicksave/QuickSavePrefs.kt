@@ -61,7 +61,7 @@ object QuickSavePrefs {
         val p = prefs(context)
         val last = p.getLong(KEY_LAST_AUTO_TRIGGER_MS, 0L)
         if (nowMs - last in 0 until AUTO_TRIGGER_DEBOUNCE_MS) return false
-        p.edit().putLong(KEY_LAST_AUTO_TRIGGER_MS, nowMs).commit()
+        p.edit().putLong(KEY_LAST_AUTO_TRIGGER_MS, nowMs).apply()
         return true
     }
 }

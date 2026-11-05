@@ -17,6 +17,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -58,7 +59,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.layout
@@ -208,6 +212,17 @@ private fun ArContent(spotId: Long, sonarOn: Boolean) {
             val rel = g.relativeDeg
             val dist = g.distanceM
 
+            if (heading != null) {
+                val horizon = ArProjection.horizon(
+                    devicePitchDeg = heading.pitchDeg.toDouble(),
+                    deviceRollDeg = heading.rollDeg.toDouble(),
+                    verticalFovDeg = fov.verticalDeg,
+                    screenWidthPx = wPx,
+                    screenHeightPx = hPx,
+                )
+                if (horizon.visible) HorizonLine(horizon)
+            }
+
             if (heading != null && rel != null && dist != null && !g.arrived) {
                 val altDelta = 0.0 // GPS altitude too noisy for elevation; assume same level
                 val elevation = ArProjection.targetElevationDeg(dist, altDelta)
@@ -220,6 +235,7 @@ private fun ArContent(spotId: Long, sonarOn: Boolean) {
                     screenWidthPx = wPx,
                     screenHeightPx = hPx,
                     marginPx = marginPx,
+                    deviceRollDeg = heading.rollDeg.toDouble(),
                 )
                 val label = GeoMath.formatDistance(dist, metric)
                 when (result) {
@@ -284,6 +300,28 @@ private fun ArContent(spotId: Long, sonarOn: Boolean) {
             }
             if (g.gpsWeak) Text("GPS weak: pin may be off", color = Color(0xFFFFCCBC), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
             if (g.compassNeedsCalibration) Text("Compass inaccurate: wave phone in a figure-8", color = Color(0xFFFFCCBC), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/** Dashed horizon line (decorative, no semantics): shows where level ground meets the sky. */
+@Composable
+private fun HorizonLine(line: ArProjection.HorizonLine) {
+    val density = LocalDensity.current
+    val stroke = with(density) { 2.dp.toPx() }
+    val dash = with(density) { 12.dp.toPx() }
+    Canvas(Modifier.fillMaxSize()) {
+        val pivot = Offset(line.x, line.y)
+        // Long enough to cross the screen at any angle.
+        val half = size.width + size.height
+        rotate(line.angleDeg, pivot) {
+            drawLine(
+                color = Color.White.copy(alpha = 0.55f),
+                start = Offset(pivot.x - half, pivot.y),
+                end = Offset(pivot.x + half, pivot.y),
+                strokeWidth = stroke,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash / 2)),
+            )
         }
     }
 }

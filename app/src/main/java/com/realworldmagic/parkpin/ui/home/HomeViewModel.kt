@@ -30,6 +30,8 @@ data class CaptureUiState(
     val capturing: Boolean = false,
     val liveAccuracyM: Float? = null,
     val lastSaveApproximate: Boolean = false,
+    /** The last saved fix came from a mock location provider. */
+    val lastSaveMock: Boolean = false,
     val message: String? = null,
     /** Incremented on each successful save so the UI can fire a one-shot haptic. */
     val savedEvent: Int = 0,
@@ -59,7 +61,7 @@ class HomeViewModel(
     fun saveSpotHere() {
         if (_capture.value.capturing) return
         captureJob = viewModelScope.launch {
-            _capture.update { it.copy(capturing = true, liveAccuracyM = null, message = null) }
+            _capture.update { it.copy(capturing = true, liveAccuracyM = null, message = null, lastSaveMock = false) }
             // Live accuracy readout while the best-fix capture runs.
             val liveJob = launch {
                 locationProvider.locationUpdates(1000L)
@@ -97,6 +99,7 @@ class HomeViewModel(
                     _capture.update {
                         it.copy(
                             lastSaveApproximate = result.approximate,
+                            lastSaveMock = result.isMock,
                             liveAccuracyM = fix.accuracyM,
                             savedEvent = it.savedEvent + 1,
                             message = if (result.approximate) "Saved approximate location (weak GPS)." else "Parking spot saved!",

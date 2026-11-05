@@ -1,7 +1,10 @@
 package com.realworldmagic.parkpin.ui.spot
 
 import android.Manifest
+import android.app.AlarmManager
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -234,6 +237,18 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (ui.meterExpiresAtMs != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == false
+            ) {
+                // Without the exact-alarm permission the reminder may arrive up to ~10 min early.
+                TextButton(onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName)),
+                        )
+                    }
+                }) { Text("Allow on-time reminders") }
+            }
 
             Spacer(Modifier.height(8.dp))
             Button(onClick = { vm.save() }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = ui.original != null) {

@@ -62,7 +62,7 @@ object QuickSaveNotifications {
         )
     }
 
-    fun postSaved(context: Context, spotId: Long, accuracyM: Float, approximate: Boolean) {
+    fun postSaved(context: Context, spotId: Long, accuracyM: Float, approximate: Boolean, isMock: Boolean = false) {
         val acc = accuracyM.roundToInt().coerceAtLeast(1)
         val title = context.getString(
             if (approximate) R.string.quicksave_saved_title_approx else R.string.quicksave_saved_title, acc,
@@ -71,7 +71,9 @@ object QuickSaveNotifications {
         val n = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.quicksave_ic_car)
             .setContentTitle(title)
-            .setContentText(context.getString(R.string.quicksave_saved_text))
+            .setContentText(
+                context.getString(if (isMock) R.string.quicksave_saved_text_mock else R.string.quicksave_saved_text),
+            )
             .setContentIntent(guide)
             .addAction(0, context.getString(R.string.quicksave_action_guide), guide)
             .setAutoCancel(true)

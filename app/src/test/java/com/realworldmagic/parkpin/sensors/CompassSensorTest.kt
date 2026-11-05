@@ -102,6 +102,42 @@ class CompassSensorTest {
         job.cancel()
     }
 
+    private fun sendQuaternion(sensor: Sensor, x: Float, y: Float, z: Float, w: Float) {
+        val event = SensorEventBuilder.newBuilder()
+            .setSensor(sensor)
+            .setValues(floatArrayOf(x, y, z, w))
+            .setTimestamp(System.nanoTime())
+            .build()
+        shadowSensors.sendSensorEventToListeners(event)
+    }
+
+    @Test
+    fun cameraMode_uprightAndLandscape_reportCameraAzimuthAndRoll() = runTest(UnconfinedTestDispatcher()) {
+        val rv = addSensor(Sensor.TYPE_ROTATION_VECTOR)
+        val compass = CompassSensor(context)
+        val headings = mutableListOf<Heading>()
+        val job = launch { compass.headingUpdates(cameraMode = true).collect { headings += it } }
+        runCurrent()
+
+        // Upright portrait, camera facing North: +90 deg about East.
+        val s = 0.70710677f
+        sendQuaternion(rv, s, 0f, 0f, s)
+        runCurrent()
+        var h = headings.last()
+        assertEquals(0.0, angularDistance(h.azimuthDeg.toDouble(), 0.0), 0.5)
+        assertEquals(0f, h.pitchDeg, 0.5f)
+        assertEquals(0f, h.rollDeg, 0.5f)
+
+        // Same camera direction, phone turned 90 deg clockwise (landscape).
+        sendQuaternion(rv, 0.5f, 0.5f, -0.5f, 0.5f)
+        runCurrent()
+        h = headings.last()
+        assertEquals(0.0, angularDistance(h.azimuthDeg.toDouble(), 0.0), 0.5)
+        assertEquals(0f, h.pitchDeg, 0.5f)
+        assertEquals(90f, h.rollDeg, 0.5f)
+        job.cancel()
+    }
+
     @Test
     fun unregistersListenerWhenCollectionStops() = runTest(UnconfinedTestDispatcher()) {
         val rv = addSensor(Sensor.TYPE_ROTATION_VECTOR)
