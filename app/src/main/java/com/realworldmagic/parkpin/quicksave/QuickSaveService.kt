@@ -31,11 +31,23 @@ class QuickSaveService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var job: Job? = null
 
+    @Volatile
+    private var latestStartId = 0
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val source = intent?.getStringExtra(EXTRA_SOURCE) ?: SOURCE_UNKNOWN
         QuickSaveNotifications.ensureChannel(this)
+        latestStartId = startId
+
+        if (job?.isActive == true) {
+            // A capture is already running (repeat tap). Every startForegroundService() call must be
+            // answered with startForeground(), so re-post the progress notification, but do not stop
+            // the service here: that would remove the foreground state of the running capture.
+            if (!enterForegroundLocation()) enterForegroundFallback()
+            return START_NOT_STICKY
+        }
 
         if (!QuickSavePermissions.hasLocation(this)) {
             enterForegroundFallback()
@@ -53,7 +65,6 @@ class QuickSaveService : Service() {
             return START_NOT_STICKY
         }
 
-        if (job?.isActive == true) return START_NOT_STICKY // a capture is already running; ignore repeat taps
         job = scope.launch {
             val outcome = try {
                 QuickSaveCore.captureAndSave(this@QuickSaveService)
@@ -69,7 +80,9 @@ class QuickSaveService : Service() {
             } else {
                 QuickSaveCore.publish(this@QuickSaveService, outcome)
             }
-            finish(startId)
+            // Use the newest start id: repeat taps during the capture bump it, and stopSelf(oldId)
+            // would leave the service running.
+            finish(latestStartId)
         }
         return START_NOT_STICKY
     }

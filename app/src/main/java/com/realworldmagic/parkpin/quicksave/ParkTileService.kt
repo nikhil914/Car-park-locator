@@ -1,5 +1,6 @@
 package com.realworldmagic.parkpin.quicksave
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
@@ -98,6 +99,8 @@ class ParkTileService : TileService() {
         }
     }
 
+    // The Intent overload is only reached below API 34 (SDK_INT check), where it is the only option.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     private fun launchActivity(intent: Intent, requestCode: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val pi = PendingIntent.getActivity(

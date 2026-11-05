@@ -18,6 +18,7 @@ import com.realworldmagic.parkpin.domain.Heading
 import com.realworldmagic.parkpin.domain.LocationFix
 import com.realworldmagic.parkpin.domain.ParkingSpot
 import com.realworldmagic.parkpin.location.LocationProvider
+import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.sensors.BarometerSensor
 import com.realworldmagic.parkpin.sensors.CompassSensor
@@ -67,6 +68,8 @@ open class GuideViewModel(
     spotId: Long,
     cameraMode: Boolean,
     private val barometer: BarometerSensor? = null,
+    /** Refreshes home-screen widgets and the Quick Settings tile after the active spot changes. */
+    private val onSpotsChanged: () -> Unit = {},
 ) : ViewModel() {
 
     private val arrivalDetector = ArrivalDetector()
@@ -137,7 +140,10 @@ open class GuideViewModel(
         val spot = state.value.guidance.spot
         viewModelScope.launch {
             if (spot?.meterExpiresAtMs != null) reminderScheduler.cancel(spot.id)
-            if (spot?.isActive == true) repository.clearActive()
+            if (spot?.isActive == true) {
+                repository.clearActive()
+                onSpotsChanged()
+            }
             onDone()
         }
     }
@@ -146,9 +152,11 @@ open class GuideViewModel(
         fun factory(spotId: Long, cameraMode: Boolean = false): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val c = parkPinContainer()
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
                 GuideViewModel(
                     c.parkingRepository, c.settingsRepository, c.locationProvider, c.compassSensor,
                     c.meterReminderScheduler, spotId, cameraMode, c.barometerSensor,
+                    onSpotsChanged = { WidgetUpdater.refreshAll(app) },
                 )
             }
         }
