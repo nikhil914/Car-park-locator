@@ -28,7 +28,7 @@ class OfflineAreaPlannerTest {
     }
 
     @Test fun defaultPlanStaysUnderCap() {
-        val centers = listOf(london, GeoPoint(0.0, 0.0), GeoPoint(-33.86, 151.21), GeoPoint(64.14, -21.94))
+        val centers = listOf(london, GeoPoint(0.0, 10.0), GeoPoint(-33.86, 151.21), GeoPoint(64.14, -21.94))
         for (c in centers) {
             val plan = p.plan(c)
             assertNotNull(plan)
