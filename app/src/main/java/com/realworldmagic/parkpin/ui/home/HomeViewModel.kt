@@ -1,6 +1,7 @@
 package com.realworldmagic.parkpin.ui.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -10,6 +11,7 @@ import com.realworldmagic.parkpin.data.SettingsRepository
 import com.realworldmagic.parkpin.domain.ParkingSpot
 import com.realworldmagic.parkpin.location.LocationProvider
 import com.realworldmagic.parkpin.location.captureBestFix
+import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.ui.util.parkPinContainer
 import kotlinx.coroutines.Job
@@ -36,6 +38,8 @@ class HomeViewModel(
     settingsRepository: SettingsRepository,
     private val locationProvider: LocationProvider,
     private val reminderScheduler: MeterReminderScheduler,
+    /** Refreshes home-screen widgets and the Quick Settings tile after the active spot changes. */
+    private val onSpotsChanged: () -> Unit = {},
 ) : ViewModel() {
 
     val activeSpot: StateFlow<ParkingSpot?> = repository.observeActiveSpot()
@@ -73,6 +77,7 @@ class HomeViewModel(
                             savedAtMs = System.currentTimeMillis(),
                         )
                     )
+                    onSpotsChanged()
                     _capture.update {
                         it.copy(
                             lastSaveApproximate = result.approximate,
@@ -104,6 +109,7 @@ class HomeViewModel(
         viewModelScope.launch {
             spot?.let { if (it.meterExpiresAtMs != null) reminderScheduler.cancel(it.id) }
             repository.clearActive()
+            onSpotsChanged()
             _capture.update { it.copy(message = "Glad you found it!") }
         }
     }
@@ -113,8 +119,11 @@ class HomeViewModel(
     companion object {
         val Factory = viewModelFactory {
             initializer {
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
                 val c = parkPinContainer()
-                HomeViewModel(c.parkingRepository, c.settingsRepository, c.locationProvider, c.meterReminderScheduler)
+                HomeViewModel(c.parkingRepository, c.settingsRepository, c.locationProvider, c.meterReminderScheduler) {
+                    WidgetUpdater.refreshAll(app)
+                }
             }
         }
     }

@@ -1,12 +1,14 @@
 package com.realworldmagic.parkpin.ui.settings
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.realworldmagic.parkpin.data.AppSettings
 import com.realworldmagic.parkpin.data.ParkingRepository
 import com.realworldmagic.parkpin.data.SettingsRepository
+import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.ui.util.parkPinContainer
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +21,8 @@ class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val repository: ParkingRepository,
     private val reminderScheduler: MeterReminderScheduler,
+    /** Refreshes home-screen widgets and the Quick Settings tile after spots change. */
+    private val onSpotsChanged: () -> Unit = {},
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
@@ -40,18 +44,22 @@ class SettingsViewModel(
     /** Deletes every saved spot (active included) and cancels their reminders. */
     fun deleteAllHistory(onDone: (Int) -> Unit) {
         viewModelScope.launch {
-        val count = repository.observeHistory().first().size
-        reminderScheduler.cancelAll()
-        repository.deleteAll()
-        onDone(count)
+            val count = repository.observeHistory().first().size
+            reminderScheduler.cancelAll()
+            repository.deleteAll()
+            onSpotsChanged()
+            onDone(count)
         }
     }
 
     companion object {
         val Factory = viewModelFactory {
             initializer {
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
                 val c = parkPinContainer()
-                SettingsViewModel(c.settingsRepository, c.parkingRepository, c.meterReminderScheduler)
+                SettingsViewModel(c.settingsRepository, c.parkingRepository, c.meterReminderScheduler) {
+                    WidgetUpdater.refreshAll(app)
+                }
             }
         }
     }
