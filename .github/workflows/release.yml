@@ -1,0 +1,109 @@
+name: Release
+
+# Builds a release APK when a tag like v1.2.3 is pushed and attaches it to a GitHub Release.
+#
+# Signing (optional). Add these repository secrets (Settings > Secrets and variables > Actions):
+#   KEYSTORE_BASE64    base64 of your .jks/.keystore file  (base64 -w0 release.jks)
+#   KEYSTORE_PASSWORD  keystore (store) password
+#   KEY_ALIAS          alias of the signing key inside the keystore
+#   KEY_PASSWORD       password of that key
+# If KEYSTORE_BASE64 is absent the workflow publishes an UNSIGNED APK
+# (app-release-unsigned.apk), which must be signed before it can be installed.
+# Signing uses AGP's built-in injected signing properties, so no signingConfig
+# change in app/build.gradle.kts is required.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Decode keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+            echo "path=$RUNNER_TEMP/release.keystore" >> "$GITHUB_OUTPUT"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No KEYSTORE_BASE64 secret: building unsigned APK."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon :app:testReleaseUnitTest
+
+      - name: Assemble release (signed)
+        if: steps.keystore.outputs.signed == 'true'
+        env:
+          KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon :app:assembleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Assemble release (unsigned)
+        if: steps.keystore.outputs.signed != 'true'
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Collect APK
+        id: apk
+        run: |
+          mkdir -p dist
+          src=$(ls app/build/outputs/apk/release/*.apk | head -n1)
+          if [ "${{ steps.keystore.outputs.signed }}" = "true" ]; then
+            name="parkpin-${GITHUB_REF_NAME}.apk"
+          else
+            name="parkpin-${GITHUB_REF_NAME}-unsigned.apk"
+          fi
+          cp "$src" "dist/$name"
+          echo "file=dist/$name" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.apk.outputs.file }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.keystore"
