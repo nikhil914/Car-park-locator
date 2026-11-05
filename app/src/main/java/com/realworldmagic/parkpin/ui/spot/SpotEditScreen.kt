@@ -46,7 +46,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -157,8 +156,9 @@ fun SpotEditScreen(spotId: Long, onBack: () -> Unit) {
             Text("Photo", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             val photo = ui.photoUri
             if (photo != null) {
-                val bitmap by produceState<ImageBitmap?>(null, photo) {
-                    value = withContext(Dispatchers.IO) { loadThumbnail(context, photo)?.asImageBitmap() }
+                var bitmap by remember(photo) { mutableStateOf<ImageBitmap?>(null) }
+                LaunchedEffect(photo) {
+                    bitmap = withContext(Dispatchers.IO) { loadThumbnail(context, photo)?.asImageBitmap() }
                 }
                 bitmap?.let {
                     Image(

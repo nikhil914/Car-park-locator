@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.realworldmagic.parkpin.data.ParkingRepository
 import com.realworldmagic.parkpin.data.SettingsRepository
 import com.realworldmagic.parkpin.domain.ParkingSpot
+import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.ui.navigation.Routes
 import com.realworldmagic.parkpin.ui.util.parkPinContainer
@@ -42,6 +43,8 @@ class SpotEditViewModel(
     private val settingsRepository: SettingsRepository,
     private val reminderScheduler: MeterReminderScheduler,
     private val spotId: Long,
+    /** Called after a successful save so the widget / QS tile reflect the edit. */
+    private val onSpotsChanged: () -> Unit = {},
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SpotEditUiState())
@@ -86,6 +89,7 @@ class SpotEditViewModel(
                     reminderScheduler.schedule(spot.id, new, s.leadMinutes)
                 }
             }
+            onSpotsChanged()
             _state.update { it.copy(original = spot, saved = true) }
         }
     }
@@ -94,7 +98,10 @@ class SpotEditViewModel(
         fun factory(spotId: Long): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val c = parkPinContainer()
-                SpotEditViewModel(c.parkingRepository, c.settingsRepository, c.meterReminderScheduler, spotId)
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
+                SpotEditViewModel(c.parkingRepository, c.settingsRepository, c.meterReminderScheduler, spotId) {
+                    WidgetUpdater.refreshAll(app)
+                }
             }
         }
     }

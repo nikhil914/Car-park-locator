@@ -11,6 +11,7 @@ import com.realworldmagic.parkpin.data.SettingsRepository
 import com.realworldmagic.parkpin.domain.LocationFix
 import com.realworldmagic.parkpin.domain.ParkingSpot
 import com.realworldmagic.parkpin.location.LocationProvider
+import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
 import com.realworldmagic.parkpin.ui.util.parkPinContainer
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +37,8 @@ class HistoryViewModel(
     locationProvider: LocationProvider,
     private val reminderScheduler: MeterReminderScheduler,
     locationAllowed: Boolean,
+    /** Called after a delete so the widget / QS tile reflect the change. */
+    private val onSpotsChanged: () -> Unit = {},
 ) : ViewModel() {
 
     private val fixFlow = (if (locationAllowed) locationProvider.locationUpdates(5000L) else emptyFlow<LocationFix>())
@@ -52,6 +55,7 @@ class HistoryViewModel(
         viewModelScope.launch {
             if (spot.meterExpiresAtMs != null) reminderScheduler.cancel(spot.id)
             repository.delete(spot.id)
+            onSpotsChanged()
         }
     }
 
@@ -59,7 +63,10 @@ class HistoryViewModel(
         fun factory(locationAllowed: Boolean): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val c = parkPinContainer()
-                HistoryViewModel(c.parkingRepository, c.settingsRepository, c.locationProvider, c.meterReminderScheduler, locationAllowed)
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
+                HistoryViewModel(c.parkingRepository, c.settingsRepository, c.locationProvider, c.meterReminderScheduler, locationAllowed) {
+                    WidgetUpdater.refreshAll(app)
+                }
             }
         }
     }
