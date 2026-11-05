@@ -34,6 +34,13 @@ android {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.maxHeapSize = "2g"
+            // Robolectric's FileDescriptor interceptor (used by SDK 36 ApplicationSharedMemory)
+            // reflects into jdk.internal.access.SharedSecrets, which JDK 17+ does not export.
+            it.jvmArgs(
+                "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+                "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+            )
             it.testLogging {
                 exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
             }
