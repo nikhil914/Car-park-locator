@@ -425,9 +425,6 @@ private fun CameraPreview(onCameraBound: (Camera) -> Unit) {
     AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 }
 
-/** Reads physical sensor size + focal length to estimate FOV; null if unavailable. */
-@SuppressLint("UnsafeOptInUsageError")
-@OptIn(ExperimentalCamera2Interop::class)
 // Edge-to-edge is mandatory at targetSdk 36. safeDrawing also covers side system bars and
 // display cutouts when the screen rotates on large displays.
 private val TopInsets: WindowInsets
@@ -436,6 +433,9 @@ private val TopInsets: WindowInsets
 private val BottomInsets: WindowInsets
     @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
 
+/** Reads physical sensor size + focal length to estimate FOV; null if unavailable. */
+@SuppressLint("UnsafeOptInUsageError")
+@OptIn(ExperimentalCamera2Interop::class)
 private fun readFov(camera: Camera): Pair<Double, Double>? = try {
     val info = Camera2CameraInfo.from(camera.cameraInfo)
     val size = info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
