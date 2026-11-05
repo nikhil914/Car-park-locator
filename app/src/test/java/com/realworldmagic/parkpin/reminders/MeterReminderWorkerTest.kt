@@ -62,7 +62,8 @@ class MeterReminderWorkerTest {
 
     @Test
     fun postsNotificationOnMeterChannel() {
-        val expires = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10) + 30_000
+        // Minutes are rounded up, so 9 min 30 s reads as 10.
+        val expires = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10) - 30_000
         val id = activeSpot(expires)
 
         assertEquals(ListenableWorker.Result.success(), runWorker(spotId = id, expiresAt = expires))
