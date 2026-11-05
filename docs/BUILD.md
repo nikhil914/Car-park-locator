@@ -1,15 +1,26 @@
 # Building ParkPin
 
 Project root: `/home/user/car-park-locator` (`/home/user/ParkPin` is a symlink to it).
-Toolchain: JDK 17+ (sandbox has JDK 21), Gradle 8.14.3 via the wrapper (`./gradlew`),
-AGP 8.7.3, Kotlin 2.0.21, compileSdk/targetSdk 35, minSdk 26.
+Toolchain: JDK 21 (sandbox has JDK 21), Gradle 9.6.1 via the wrapper (`./gradlew`),
+AGP 9.5.0 with built-in Kotlin, Kotlin 2.4.21, KSP 2.3.13, compileSdk 37, targetSdk 36, minSdk 26.
+
+compileSdk is 37 because Compose 1.12 (BOM 2026.09.00), core 1.19, lifecycle 2.11 and
+navigation 2.10 declare `minCompileSdk` 37 in their AAR metadata. Compiling against 37 changes
+no runtime behavior; targetSdk stays 36 until the Android 17 location-button work is done
+(see RESEARCH.md §4.2).
+
+AGP 9 notes: the `org.jetbrains.kotlin.android` plugin is gone (AGP compiles Kotlin itself);
+only `org.jetbrains.kotlin.plugin.compose` and KSP are applied, and the JVM target is set with
+`kotlin { compilerOptions { jvmTarget } }`. AGP 9.5 needs Gradle 9.6.0+ and JDK 17+.
+CI uses JDK 21 because Robolectric runs SDK 35+ android-all jars only on Java 21
+(`app/src/test/resources/robolectric.properties` sets `sdk=36`).
 
 ## Normal machines and GitHub Actions CI
 
 Google Maven and the SDK repository are reachable there, so nothing special is needed:
 
 ```bash
-# CI: use actions/setup-java (17) + android-actions/setup-android, then
+# CI: use actions/setup-java (21), then
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ```
@@ -36,15 +47,15 @@ the SDK:
   are all refused by the proxy with CONNECT 403.
 
 Gradle fails with:
-`Plugin [id: 'com.android.application', version: '8.7.3'] was not found ... could not resolve plugin artifact`.
+`Plugin [id: 'com.android.application', version: '9.5.0'] was not found ... could not resolve plugin artifact`.
 
 To build the APK in the sandbox, `dl.google.com` must be allowed in the environment's
 network settings. With it allowed, the normal steps above work. You can then also install a
-real SDK with `sdkmanager "platforms;android-35" "build-tools;35.0.0"`.
+real SDK with `sdkmanager "platforms;android-37" "build-tools;36.0.0"`.
 
 ### What works in the sandbox
 
-1. **Gradle wrapper**: `./gradlew` downloads Gradle 8.14.3 from services.gradle.org, which
+1. **Gradle wrapper**: `./gradlew` downloads Gradle 9.6.1 from services.gradle.org, which
    redirects to GitHub release assets. This is reachable.
 2. **Android SDK skeleton** at `/home/user/android-sdk`, built by `scripts/setup-sdk.sh`
    without dl.google.com:
@@ -85,5 +96,6 @@ scripts/jvm-domain-test.sh           # JVM domain unit tests (works offline from
 Notes:
 - Maven Central (`repo1.maven.org`) sometimes returns HTTP 429 here. Gradle retries, and
   rerunning the build usually succeeds.
-- No changes were made to `compileSdk`/`targetSdk` (still 35) or to
-  `gradle/libs.versions.toml`.
+- `scripts/setup-sdk.sh` still builds an android-35 skeleton; the app now compiles against
+  android-37, so the skeleton is outdated for AGP builds. The JVM domain test script does not
+  need it (last run with Kotlin 2.4.21: BUILD SUCCESSFUL).
