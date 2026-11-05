@@ -13,8 +13,10 @@ import com.realworldmagic.parkpin.location.LocationProvider
 import com.realworldmagic.parkpin.location.captureBestFix
 import com.realworldmagic.parkpin.quicksave.WidgetUpdater
 import com.realworldmagic.parkpin.reminders.MeterReminderScheduler
+import com.realworldmagic.parkpin.sensors.BarometerSensor
 import com.realworldmagic.parkpin.ui.util.parkPinContainer
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +42,7 @@ class HomeViewModel(
     private val reminderScheduler: MeterReminderScheduler,
     /** Refreshes home-screen widgets and the Quick Settings tile after the active spot changes. */
     private val onSpotsChanged: () -> Unit = {},
+    private val barometer: BarometerSensor? = null,
 ) : ViewModel() {
 
     val activeSpot: StateFlow<ParkingSpot?> = repository.observeActiveSpot()
@@ -63,10 +66,22 @@ class HomeViewModel(
                     .catch { }
                     .collect { fix -> _capture.update { s -> s.copy(liveAccuracyM = fix.accuracyM) } }
             }
+            // Barometer reading in parallel with the GPS fix (null without a barometer); used later
+            // for the "car is ~N floors below you" hint in multi-level garages.
+            val pressure = async {
+                try {
+                    barometer?.currentPressureHpa()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
             try {
                 val result = captureBestFix(locationProvider)
                 val fix = result.fix
                 if (fix == null) {
+                    pressure.cancel()
                     _capture.update { it.copy(message = "Couldn't get a location fix. Try again outdoors.") }
                 } else {
                     repository.saveNewSpot(
@@ -75,6 +90,7 @@ class HomeViewModel(
                             accuracyM = fix.accuracyM,
                             altitudeM = fix.altitudeM,
                             savedAtMs = System.currentTimeMillis(),
+                            pressureHpa = pressure.await(),
                         )
                     )
                     onSpotsChanged()
@@ -95,6 +111,7 @@ class HomeViewModel(
                 _capture.update { it.copy(message = "Saving failed: ${e.message ?: "unknown error"}") }
             } finally {
                 liveJob.cancel()
+                pressure.cancel()
                 _capture.update { it.copy(capturing = false) }
             }
         }
@@ -121,9 +138,11 @@ class HomeViewModel(
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!
                 val c = parkPinContainer()
-                HomeViewModel(c.parkingRepository, c.settingsRepository, c.locationProvider, c.meterReminderScheduler) {
-                    WidgetUpdater.refreshAll(app)
-                }
+                HomeViewModel(
+                    c.parkingRepository, c.settingsRepository, c.locationProvider, c.meterReminderScheduler,
+                    onSpotsChanged = { WidgetUpdater.refreshAll(app) },
+                    barometer = c.barometerSensor,
+                )
             }
         }
     }

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material.icons.filled.Warning
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.realworldmagic.parkpin.domain.FloorHint
 import com.realworldmagic.parkpin.domain.GeoMath
 import com.realworldmagic.parkpin.ui.components.AccuracyBadge
 import com.realworldmagic.parkpin.ui.components.CompassCalibrationDialog
@@ -224,6 +226,11 @@ private fun GuideContent(
             }
         }
 
+        ui.floorHint?.let { hint ->
+            Spacer(Modifier.height(12.dp))
+            FloorHintCard(hint)
+        }
+
         g.spot?.let { spot ->
             if (spot.note.isNotBlank() || !spot.floorLabel.isNullOrBlank()) {
                 Spacer(Modifier.height(12.dp))
@@ -269,6 +276,33 @@ private fun ArrivedBanner() {
         Spacer(Modifier.height(12.dp))
         Text("You're there!", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
         Text("Your car should be right around you.", style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun FloorHintCard(hint: FloorHint) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
+            contentDescription = "${hint.text}. ${hint.caveat}"
+        },
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Layers, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(
+                    hint.text,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    hint.caveat,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
     }
 }
 
