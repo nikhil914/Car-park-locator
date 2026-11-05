@@ -6,12 +6,24 @@ airplane mode. Automated tests cover the logic. Field tests cover the sensors.
 | Layer | Tool | Runs on | Status |
 |---|---|---|---|
 | Domain (pure Kotlin) | JUnit 4 | JVM (`testDebugUnitTest`) | Phase 0 |
-| Room DAO / repository | Robolectric (JVM) or instrumented (`androidTest`) | JVM / device | Planned |
+| Room DAO / repository, DataStore | Robolectric 4.14 (JVM, SDK 34) | JVM (`testDebugUnitTest`) | Done |
+| WorkManager, LocationManager, sensors | Robolectric + `work-testing` + shadows | JVM | Done |
 | ViewModels | JUnit 4 + `kotlinx-coroutines-test` + fakes | JVM | Planned |
-| Compose UI | `ui-test-junit4` | Device / emulator, Robolectric | Planned |
+| Compose UI (components, History) | `ui-test-junit4` + Robolectric | JVM | Done (partial) |
+| App smoke | `connectedDebugAndroidTest` | API 34 emulator ([instrumented.yml](../.github/workflows/instrumented.yml)) | Done |
 | Sensors and GPS | Manual field tests + mock locations | Real devices | Each release |
 
-CI ([android.yml](../.github/workflows/android.yml)) runs unit tests, lint and a debug build on every push and pull request to `main`.
+CI ([android.yml](../.github/workflows/android.yml)) runs unit tests (domain and Robolectric), lint and a debug build on every push and pull request to `main`.
+[instrumented.yml](../.github/workflows/instrumented.yml) runs `connectedDebugAndroidTest` on an API 34 x86_64 emulator (KVM) on push to `main` and on manual dispatch.
+
+### Robolectric setup
+
+- `app/src/test/resources/robolectric.properties` pins `sdk=34`. Robolectric's SDK 35 image needs JDK 21; CI uses JDK 17.
+- `testOptions.unitTests.isIncludeAndroidResources = true` so tests see app strings and the merged manifest.
+- The Robolectric application is the real `ParkPinApp`. Its container uses a file-backed Room DB in the per-test sandbox directory.
+- `SettingsRepository` uses a process-wide DataStore singleton. Keep settings writes in `SettingsRepositoryTest`, and restore defaults at the end.
+- Tests that touch `MeterReminderScheduler` (directly or through a ViewModel factory) must call `WorkManagerTestInitHelper.initializeTestWorkManager` first.
+- Compose tests use `createComposeRule()` (activity from `ui-test-manifest`, a `debugImplementation` dependency) and `ParkPinTheme(dynamicColor = false)`.
 
 ```bash
 ./gradlew :app:testDebugUnitTest          # JVM unit tests
@@ -50,7 +62,9 @@ Location: `app/src/test/java/com/realworldmagic/parkpin/domain/`. No Android fra
 - `relativeDeg` null when heading is missing; distance still computed.
 - `compassNeedsCalibration` follows sensor accuracy.
 
-## 2. Room DAO and repository (planned)
+## 2. Room DAO and repository
+
+Implemented in `app/src/test/java/com/realworldmagic/parkpin/data/` (`ParkingDaoTest`, `ParkingRepositoryImplTest`, `SettingsRepositoryTest`), with Turbine for Flow assertions. Reminders, location and compass tests are in `reminders/`, `location/` and `sensors/`.
 
 Preferred: Robolectric so the tests run in CI without an emulator, using `Room.inMemoryDatabaseBuilder(...).allowMainThreadQueries()`. Keep an instrumented copy under `androidTest` for a real SQLite check before releases.
 
@@ -71,7 +85,9 @@ Use fakes for `LocationProvider`, `CompassSensor` (behind an interface or a fake
 - Guide: distance / relative bearing update on fake fixes and headings; arrival haptic event emitted once.
 - History: delete and re-guide actions.
 
-## 4. Compose UI tests (planned)
+## 4. Compose UI tests
+
+Implemented on Robolectric: `ui/components/DirectionArrowTest`, `ui/components/PermissionGateTest`, `ui/history/HistoryScreenTest`. Device smoke test: `app/src/androidTest/.../MainActivitySmokeTest`. The remaining items below are still planned.
 
 `createAndroidComposeRule<MainActivity>()` on emulator, or `createComposeRule()` for single screens with fake state.
 
