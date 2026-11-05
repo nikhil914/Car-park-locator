@@ -81,8 +81,9 @@ object GeoMath {
         return ceil(meters / speedMps / 60.0).toInt()
     }
 
-    /** 8-point compass name of a bearing. */
+    /** 8-point compass name of a bearing. Non-finite input (no bearing yet) yields "N" instead of throwing. */
     fun cardinal(bearingDeg: Double): String {
+        if (!bearingDeg.isFinite()) return CARDINALS[0]
         val idx = (normalizeDeg(bearingDeg) / 45.0).roundToInt() % 8
         return CARDINALS[idx]
     }

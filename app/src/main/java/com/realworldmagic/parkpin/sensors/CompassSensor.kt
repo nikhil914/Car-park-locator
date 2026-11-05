@@ -144,13 +144,20 @@ class CompassSensor(context: Context) {
         val rv = rotationVector
         val acc = accelerometer
         val mag = magnetometer
-        if (rv != null) {
-            sensorManager.registerListener(listener, rv, rate)
+        val registered = if (rv != null) {
             // Magnetometer only for its accuracy (calibration prompt).
             mag?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
+            sensorManager.registerListener(listener, rv, rate)
         } else if (acc != null && mag != null) {
-            sensorManager.registerListener(listener, acc, rate)
-            sensorManager.registerListener(listener, mag, rate)
+            sensorManager.registerListener(listener, acc, rate) and
+                sensorManager.registerListener(listener, mag, rate)
+        } else {
+            false
+        }
+        if (!registered) {
+            // No heading will ever arrive: complete instead of hanging silently (UI shows "no compass").
+            sensorManager.unregisterListener(listener)
+            close()
         }
         awaitClose { sensorManager.unregisterListener(listener) }
     }.conflate()

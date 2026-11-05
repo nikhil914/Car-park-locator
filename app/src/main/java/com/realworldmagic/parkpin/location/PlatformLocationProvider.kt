@@ -8,6 +8,7 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import com.realworldmagic.parkpin.domain.GeoPoint
 import com.realworldmagic.parkpin.domain.LocationFix
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +37,7 @@ class PlatformLocationProvider(context: Context) : LocationProvider {
         var lastGpsTimeMs = 0L
         val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
+                if (!location.isUsableLiveFix()) return
                 val isGps = location.provider == LocationManager.GPS_PROVIDER
                 if (isGps) lastGpsTimeMs = location.time
                 // Prefer GPS: drop network fixes while GPS is fresh.
@@ -83,6 +85,7 @@ class PlatformLocationProvider(context: Context) : LocationProvider {
             .mapNotNull { p ->
                 try { manager.getLastKnownLocation(p) } catch (e: SecurityException) { null } catch (e: IllegalArgumentException) { null }
             }
+            .filter { GeoPoint(it.latitude, it.longitude).isValid }
             .maxByOrNull { it.time }
             ?.toFix()
     }

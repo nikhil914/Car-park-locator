@@ -37,11 +37,20 @@ class FusedLocationProvider(context: Context) : LocationProvider {
             .build()
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                for (location in result.locations) trySend(location.toFix("fused"))
+                // Batched results can include cached/historical fixes; drop stale and bogus ones.
+                for (location in result.locations) {
+                    if (location.isUsableLiveFix()) trySend(location.toFix("fused"))
+                }
             }
         }
         try {
             client.requestLocationUpdates(request, callback, Looper.getMainLooper())
+                .addOnFailureListener { e ->
+                    // e.g. ApiException when location services are unavailable: complete quietly
+                    // (contract: never throw), consumers fall back to last-known / "no fix".
+                    Log.w(TAG, "requestLocationUpdates failed", e)
+                    close()
+                }
         } catch (e: SecurityException) {
             Log.w(TAG, "Location permission revoked", e)
             close()
@@ -56,7 +65,9 @@ class FusedLocationProvider(context: Context) : LocationProvider {
         val cts = CancellationTokenSource()
         return try {
             withTimeoutOrNull(timeoutMs) {
-                client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()?.toFix("fused")
+                client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()
+                    ?.takeIf { it.isUsableLiveFix() }
+                    ?.toFix("fused")
             }
         } catch (e: SecurityException) {
             Log.w(TAG, "Location permission revoked", e)
@@ -74,7 +85,7 @@ class FusedLocationProvider(context: Context) : LocationProvider {
     override suspend fun lastKnownFix(): LocationFix? {
         if (!appContext.hasLocationPermission()) return null
         return try {
-            client.lastLocation.await()?.toFix("fused")
+            client.lastLocation.await()?.toFix("fused")?.takeIf { it.point.isValid }
         } catch (e: SecurityException) {
             null
         } catch (e: Exception) {

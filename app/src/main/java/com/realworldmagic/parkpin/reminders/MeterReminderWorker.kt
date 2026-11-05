@@ -27,12 +27,17 @@ class MeterReminderWorker(
 
         val ctx = applicationContext
         // Skip if the spot was cleared, deleted or the meter changed since scheduling.
-        val spot = (ctx as? ParkPinApp)?.container?.parkingRepository?.getSpot(spotId)
+        val repository = (ctx as? ParkPinApp)?.container?.parkingRepository
+        val spot = repository?.getSpot(spotId)
+        // A null spot with a repository available means it was deleted: never remind about it.
+        if (repository != null && spot == null) return Result.success()
         if (spot != null && (!spot.isActive || spot.meterExpiresAtMs != expiresAt)) return Result.success()
 
         if (!canPostNotifications(ctx)) return Result.success()
 
-        val minutesLeft = TimeUnit.MILLISECONDS.toMinutes(expiresAt - System.currentTimeMillis()).coerceAtLeast(0L).toInt()
+        // Round up so "9 min 59 s left" reads as 10 minutes, matching the configured lead time.
+        val remainingMs = (expiresAt - System.currentTimeMillis()).coerceAtLeast(0L)
+        val minutesLeft = ((remainingMs + MINUTE_MS - 1) / MINUTE_MS).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         val text = if (minutesLeft > 0) {
             ctx.resources.getQuantityString(R.plurals.meter_reminder_text, minutesLeft, minutesLeft)
         } else {
@@ -84,6 +89,7 @@ class MeterReminderWorker(
         /** Intent extra read by MainActivity (Long). */
         const val EXTRA_SPOT_ID = "spotId"
         private const val MAIN_ACTIVITY = "com.realworldmagic.parkpin.MainActivity"
+        private val MINUTE_MS = TimeUnit.MINUTES.toMillis(1)
         private fun notificationId(spotId: Long) = 10_000 + (spotId % 100_000).toInt()
     }
 }
