@@ -9,22 +9,23 @@ import kotlin.math.tan
 /** Axis-aligned WGS84 box (degrees). Antimeridian crossing is not handled (edges are clamped). */
 data class GeoBox(val north: Double, val south: Double, val east: Double, val west: Double)
 
-/** A capped offline tile download: [box] at zoom [minZoom]..[maxZoom], [tileCount] tiles total. */
+/** A capped offline region: [box] at zoom [minZoom]..[maxZoom], about [tileCount] tiles per source. */
 data class OfflineAreaPlan(val box: GeoBox, val minZoom: Int, val maxZoom: Int, val tileCount: Int)
 
 /**
- * Plans a small offline map download around a point using Web Mercator (slippy map) tile math.
- * Pure Kotlin so the tile cap can be unit tested.
+ * Plans a small offline map region around a point using Web Mercator (slippy map) tile math.
+ * The map UI hands the box and zoom range to MapLibre's OfflineManager. Pure Kotlin so the
+ * size cap can be unit tested.
  */
 object OfflineAreaPlanner {
     /** Half the box side: 500 m each way gives a ~1 km x 1 km area. */
     const val DEFAULT_HALF_SIZE_M = 500.0
-    const val DEFAULT_MIN_ZOOM = 15
+    const val DEFAULT_MIN_ZOOM = 14
     const val DEFAULT_MAX_ZOOM = 17
 
     /**
-     * Hard tile cap. The OpenStreetMap tile usage policy forbids downloading more than 250 tiles
-     * at zoom 13+ for offline use, so one download never exceeds that.
+     * Politeness cap per tile source. OpenFreeMap allows offline use but asks heavy users to
+     * self-host, so one region stays small (a 1 km box at z14-z17 is well under this).
      */
     const val MAX_TILES = 250
 

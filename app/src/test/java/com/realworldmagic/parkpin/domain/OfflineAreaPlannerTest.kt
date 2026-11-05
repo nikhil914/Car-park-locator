@@ -34,8 +34,8 @@ class OfflineAreaPlannerTest {
             assertNotNull(plan)
             plan!!
             assertTrue("tiles ${plan.tileCount}", plan.tileCount <= OfflineAreaPlanner.MAX_TILES)
-            assertEquals(15, plan.minZoom)
-            assertTrue(plan.maxZoom in 15..17)
+            assertEquals(14, plan.minZoom)
+            assertTrue(plan.maxZoom in 14..17)
             assertEquals(p.tileCount(plan.box, plan.minZoom, plan.maxZoom), plan.tileCount)
         }
     }
@@ -45,9 +45,11 @@ class OfflineAreaPlannerTest {
     }
 
     @Test fun planLowersMaxZoomWhenOverCap() {
-        val plan = p.plan(london, maxTiles = 40)!!
+        val full = p.plan(london)!!
+        val cap = full.tileCount - 1
+        val plan = p.plan(london, maxTiles = cap)!!
         assertTrue(plan.maxZoom < 17)
-        assertTrue(plan.tileCount <= 40)
+        assertTrue(plan.tileCount <= cap)
     }
 
     @Test fun planNullWhenMinZoomAloneExceedsCap() {

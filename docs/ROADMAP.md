@@ -9,7 +9,7 @@
 ## Phase 1 — MVP "Drop pin, walk back"
 - [ ] Home: one-tap "I parked here" (best-of-N GPS fix, accuracy shown)
 - [ ] Guide screen: compass arrow, distance, walking ETA, cardinal direction, arrival haptic
-- [ ] Map screen (osmdroid): car + user markers, straight-line path, cached tiles offline
+- [ ] Map screen (MapLibre + OpenFreeMap): car + user markers, straight-line path, cached tiles offline
 - [ ] History: list, re-guide, delete
 - [ ] Runtime permission flow (fine/coarse, camera, notifications on 33+)
 
@@ -30,7 +30,7 @@
 - [ ] Underground garages: save last good outdoor fix + barometer altitude delta for floor estimate
 - [ ] Dead-reckoning (step counter + heading) when GPS lost indoors
 - [ ] ARCore Geospatial API (VPS) for centimeter-ish anchoring where Street View coverage exists (needs network — opt-in)
-- [ ] Offline map region download (osmdroid CacheManager for bounding box around spot)
+- [x] Offline map region download (MapLibre `OfflineManager`, ~1 km box around the spot, z14-17, OpenFreeMap; never tile.openstreetmap.org)
 
 ## Phase 5 — Toolbox expansion ("Real-World Magic")
 - [ ] Generic "pin anything" (bike, tent, meeting point)

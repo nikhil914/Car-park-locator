@@ -14,7 +14,7 @@ Part of the **Real-World Magic AR Toolbox**. First tool: save where you parked, 
 | DB | Room 2.6.1 with KSP 2.0.21-1.0.28 | offline persistence |
 | Prefs | DataStore Preferences 1.1.1 | settings |
 | Location | `play-services-location` 21.3.0 FusedLocationProviderClient, fallback `LocationManager` GPS provider when Play Services missing | GPS works without network |
-| Map | osmdroid 6.1.20 (OpenStreetMap, no API key, tile cache usable offline) | offline-friendly, free |
+| Map | MapLibre Native Android 13.0.2 + OpenFreeMap "liberty" vector style (no API key); `OfflineManager` region (~1 km, z14-17) around the car | maintained, offline download allowed by provider, free |
 | Compass | `TYPE_ROTATION_VECTOR` sensor → azimuth; magnetic declination via `GeomagneticField` | true-north bearing |
 | AR view | CameraX 1.4.1 preview + Compose overlay arrow (bearing − azimuth, pitch-aware) | no ARCore requirement; ARCore Geospatial is a later phase |
 | Background | WorkManager 2.10.0 (meter reminder), `AlarmManager` exact alarm optional | |
@@ -56,7 +56,8 @@ app/src/main/java/com/realworldmagic/parkpin/
     home/HomeScreen.kt + HomeViewModel.kt   big "I parked here" button, current active spot card
     guide/GuideScreen.kt + GuideViewModel.kt compass arrow + distance + ETA walk
     ar/ArGuideScreen.kt       CameraX preview + overlay arrow/marker
-    map/MapScreen.kt          osmdroid AndroidView, user + car markers, line
+    map/MapScreen.kt          MapLibre MapView in AndroidView, user dot + car pin + line layers, offline banner
+    map/OfflineRegions.kt     MapStyle constant, OfflineManager download/list/delete wrapper
     history/HistoryScreen.kt  past spots, delete, re-navigate
     spot/SpotEditScreen.kt    note (level/row), photo, meter timer
     settings/SettingsScreen.kt
@@ -154,4 +155,4 @@ class AppContainer(context: Context) {
 - arrival: distance < max(8 m, accuracy) for 3 consecutive fixes → arrived; leave when > 20 m (hysteresis)
 - gpsWeak when accuracy > 30 m
 
-Fully offline: GPS + sensors + Room need no network. Map tiles: cached when online; offline shows grid + markers.
+Fully offline: GPS + sensors + Room need no network. Map tiles: MapLibre ambient cache plus user-saved offline regions; with no data the map still shows markers + line.

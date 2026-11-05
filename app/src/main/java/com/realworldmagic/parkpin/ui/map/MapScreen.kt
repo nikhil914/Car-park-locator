@@ -1,6 +1,12 @@
 package com.realworldmagic.parkpin.ui.map
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -8,41 +14,41 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,7 +58,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -61,28 +67,47 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.realworldmagic.parkpin.domain.GeoMath
 import com.realworldmagic.parkpin.domain.OfflineAreaPlan
 import com.realworldmagic.parkpin.domain.OfflineAreaPlanner
+import com.realworldmagic.parkpin.domain.ParkingSpot
 import com.realworldmagic.parkpin.ui.components.LocationPermissions
 import com.realworldmagic.parkpin.ui.components.hasAnyPermission
-import org.osmdroid.config.Configuration
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polyline
-import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
-import kotlinx.coroutines.Dispatchers
+import com.realworldmagic.parkpin.ui.util.formatDateTime
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.osmdroid.util.GeoPoint as OsmGeoPoint
+import org.maplibre.android.MapLibre
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 import com.realworldmagic.parkpin.domain.GeoPoint as PinGeoPoint
 
-private fun PinGeoPoint.toOsm() = OsmGeoPoint(lat, lng)
+private fun PinGeoPoint.toLatLng() = LatLng(lat, lng)
+private fun PinGeoPoint.toPoint(): Point = Point.fromLngLat(lng, lat)
+
+private const val SRC_CAR = "parkpin-car"
+private const val SRC_USER = "parkpin-user"
+private const val SRC_LINE = "parkpin-line"
+private const val IMG_CAR = "parkpin-car-pin"
+private const val DEFAULT_ZOOM = 17.0
+
+private val EMPTY: FeatureCollection = FeatureCollection.fromFeatures(emptyList<Feature>())
 
 private fun isOnline(context: Context): Boolean = try {
     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val caps = cm.getNetworkCapabilities(cm.activeNetwork)
     caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
 } catch (e: SecurityException) {
-    true // ACCESS_NETWORK_STATE missing: let osmdroid try; it falls back to cache.
+    true // ACCESS_NETWORK_STATE missing: let MapLibre try; it falls back to its offline database.
 }
 
 /** Live connectivity, updated from the default-network callback while in composition. */
@@ -115,7 +140,127 @@ private fun rememberOnline(context: Context): Boolean {
     return online
 }
 
-private data class DownloadProgress(val done: Int, val total: Int)
+/** A map-pin bitmap in [color] with a white centre, anchored at its bottom tip. */
+private fun carPinBitmap(color: Int, density: Float): Bitmap {
+    val w = (36 * density).toInt().coerceAtLeast(1)
+    val h = (48 * density).toInt().coerceAtLeast(1)
+    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
+    val r = w / 2f
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f * density
+    }
+    val path = Path().apply {
+        moveTo(r, h.toFloat() - stroke.strokeWidth)
+        lineTo(r * 0.25f, r * 1.45f)
+        lineTo(r * 1.75f, r * 1.45f)
+        close()
+        addCircle(r, r, r - stroke.strokeWidth, Path.Direction.CW)
+    }
+    c.drawPath(path, fill)
+    c.drawCircle(r, r, r - stroke.strokeWidth, stroke)
+    c.drawCircle(r, r, r * 0.38f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE })
+    return bmp
+}
+
+/** Adds the ParkPin sources and layers on top of the base style. */
+private fun addOverlays(style: Style, carColor: Int, userColor: Int, density: Float) {
+    style.addImage(IMG_CAR, carPinBitmap(carColor, density))
+    style.addSource(GeoJsonSource(SRC_LINE))
+    style.addSource(GeoJsonSource(SRC_USER))
+    style.addSource(GeoJsonSource(SRC_CAR))
+    style.addLayer(
+        LineLayer("$SRC_LINE-layer", SRC_LINE).withProperties(
+            PropertyFactory.lineColor(carColor),
+            PropertyFactory.lineWidth(4f),
+            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+            PropertyFactory.lineDasharray(arrayOf(2f, 1.5f)),
+        ),
+    )
+    style.addLayer(
+        CircleLayer("$SRC_USER-layer", SRC_USER).withProperties(
+            PropertyFactory.circleRadius(8f),
+            PropertyFactory.circleColor(userColor),
+            PropertyFactory.circleStrokeWidth(3f),
+            PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
+        ),
+    )
+    style.addLayer(
+        SymbolLayer("$SRC_CAR-layer", SRC_CAR).withProperties(
+            PropertyFactory.iconImage(IMG_CAR),
+            PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
+        ),
+    )
+}
+
+private fun Style.setCollection(sourceId: String, fc: FeatureCollection) {
+    getSourceAs<GeoJsonSource>(sourceId)?.setGeoJson(fc)
+}
+
+/** Auto-generated name for an offline area saved around [spot]. */
+internal fun offlineAreaName(spot: ParkingSpot): String {
+    val label = listOfNotNull(
+        spot.note.takeIf { it.isNotBlank() },
+        spot.floorLabel?.takeIf { it.isNotBlank() },
+        spot.address?.takeIf { it.isNotBlank() },
+    ).firstOrNull()
+    val time = formatDateTime(spot.savedAtMs)
+    return if (label != null) "$label · $time" else "Parked $time"
+}
+
+private data class DownloadProgress(val done: Long, val total: Long)
+
+/**
+ * Drives [mapView] through the Android lifecycle of [lifecycleOwner]: onStart/onResume/onPause/
+ * onStop/onDestroy plus onLowMemory. MapView.onCreate is called once when the view is built.
+ */
+@Composable
+private fun MapViewLifecycle(mapView: MapView) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, mapView) {
+        var started = false
+        var resumed = false
+        fun start() { if (!started) { mapView.onStart(); started = true } }
+        fun resume() { start(); if (!resumed) { mapView.onResume(); resumed = true } }
+        fun pause() { if (resumed) { mapView.onPause(); resumed = false } }
+        fun stop() { pause(); if (started) { mapView.onStop(); started = false } }
+
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> start()
+                Lifecycle.Event.ON_RESUME -> resume()
+                Lifecycle.Event.ON_PAUSE -> pause()
+                Lifecycle.Event.ON_STOP -> stop()
+                else -> Unit
+            }
+        }
+        val memory = object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated in Java")
+            override fun onLowMemory() = mapView.onLowMemory()
+
+            override fun onTrimMemory(level: Int) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) mapView.onLowMemory()
+            }
+        }
+        // addObserver replays ON_START/ON_RESUME up to the current state.
+        lifecycleOwner.lifecycle.addObserver(observer)
+        context.applicationContext.registerComponentCallbacks(memory)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            context.applicationContext.unregisterComponentCallbacks(memory)
+            stop()
+            mapView.onDestroy()
+        }
+    }
+}
 
 @Composable
 fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
@@ -123,112 +268,78 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
     val locationAllowed = remember { hasAnyPermission(context, LocationPermissions) }
     val vm: MapViewModel = viewModel(key = "map-$spotId", factory = MapViewModel.factory(spotId, locationAllowed))
     val ui by vm.state.collectAsStateWithLifecycle()
-    val lifecycleOwner = LocalLifecycleOwner.current
     val carColor = MaterialTheme.colorScheme.primary.toArgb()
+    val userColor = Color(0xFF1A73E8).toArgb()
+    val density = context.resources.displayMetrics.density
 
+    var map by remember { mutableStateOf<MapLibreMap?>(null) }
+    var style by remember { mutableStateOf<Style?>(null) }
     val mapView = remember {
-        Configuration.getInstance().apply {
-            load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-            userAgentValue = context.packageName
-        }
+        MapLibre.getInstance(context)
         MapView(context).apply {
-            setTileSource(MapTiles.SOURCE)
-            setMultiTouchControls(true)
-            setUseDataConnection(isOnline(context))
-            controller.setZoom(18.0)
-            minZoomLevel = 3.0
-            maxZoomLevel = 20.0
-        }
-    }
-    val carMarker = remember {
-        Marker(mapView).apply {
-            title = "My car"
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-        }
-    }
-    val line = remember {
-        Polyline(mapView).apply {
-            outlinePaint.color = carColor
-            outlinePaint.strokeWidth = 10f
-            outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(30f, 20f), 0f)
-        }
-    }
-    val myLocation = remember {
-        if (locationAllowed) MyLocationNewOverlay(GpsMyLocationProvider(context), mapView) else null
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        mapView.overlays.add(line)
-        mapView.overlays.add(carMarker)
-        myLocation?.let { mapView.overlays.add(it) }
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    mapView.setUseDataConnection(isOnline(context))
-                    mapView.onResume()
-                    myLocation?.enableMyLocation()
+            onCreate(null)
+            getMapAsync { m ->
+                m.uiSettings.isAttributionEnabled = true
+                m.uiSettings.isLogoEnabled = true
+                m.uiSettings.isCompassEnabled = true
+                m.setMinZoomPreference(3.0)
+                m.setMaxZoomPreference(20.0)
+                m.cameraPosition = CameraPosition.Builder().zoom(DEFAULT_ZOOM).build()
+                map = m
+                m.setStyle(Style.Builder().fromUri(MapStyle.STYLE_URL)) { s ->
+                    addOverlays(s, carColor, userColor, density)
+                    style = s
                 }
-                Lifecycle.Event.ON_PAUSE -> {
-                    myLocation?.disableMyLocation()
-                    mapView.onPause()
-                }
-                else -> Unit
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            mapView.onResume(); myLocation?.enableMyLocation()
-        }
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            myLocation?.disableMyLocation()
-            mapView.onPause()
-            mapView.overlays.clear()
-            mapView.onDetach()
-        }
     }
+    MapViewLifecycle(mapView)
 
     var centeredOnce by rememberSaveable { mutableStateOf(false) }
 
-    // Offline: never hit the network; osmdroid serves whatever is in the tile cache.
+    // Offline: tell MapLibre so it serves the ambient cache and offline regions without retrying.
     val online = rememberOnline(context)
-    LaunchedEffect(online) {
-        mapView.setUseDataConnection(online)
-        mapView.invalidate()
-    }
+    LaunchedEffect(online) { MapLibre.setConnected(online) }
 
     val scope = rememberCoroutineScope()
-    val downloader = remember { OfflineAreaDownloader(mapView) }
-    DisposableEffect(downloader) { onDispose { downloader.cancel() } }
+    val regions = remember { OfflineRegions(context) }
+    DisposableEffect(regions) { onDispose { regions.cancel() } }
     var menuOpen by remember { mutableStateOf(false) }
-    var cacheInfo by remember { mutableStateOf<TileCacheInfo?>(null) }
     var confirmPlan by remember { mutableStateOf<OfflineAreaPlan?>(null) }
     var progress by remember { mutableStateOf<DownloadProgress?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(menuOpen) {
-        if (menuOpen) cacheInfo = withContext(Dispatchers.IO) { readTileCacheInfo(mapView) }
-    }
+    var savedList by remember { mutableStateOf<List<SavedRegion>?>(null) }
 
     // Sync overlays with state.
-    LaunchedEffect(ui.spot, ui.fix) {
+    LaunchedEffect(style, ui.spot, ui.fix) {
+        val s = style ?: return@LaunchedEffect
         val spot = ui.spot
         val fix = ui.fix
-        carMarker.isEnabled = spot != null
-        if (spot != null) {
-            carMarker.position = spot.point.toOsm()
-            carMarker.snippet = spot.note.ifBlank { null }
-        }
-        line.isEnabled = spot != null && fix != null
-        if (spot != null && fix != null) line.setPoints(listOf(fix.point.toOsm(), spot.point.toOsm()))
+        s.setCollection(
+            SRC_CAR,
+            spot?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it.point.toPoint())) } ?: EMPTY,
+        )
+        s.setCollection(
+            SRC_USER,
+            fix?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it.point.toPoint())) } ?: EMPTY,
+        )
+        s.setCollection(
+            SRC_LINE,
+            if (spot != null && fix != null) {
+                FeatureCollection.fromFeature(
+                    Feature.fromGeometry(LineString.fromLngLats(listOf(fix.point.toPoint(), spot.point.toPoint()))),
+                )
+            } else {
+                EMPTY
+            },
+        )
         if (!centeredOnce) {
             val target = spot?.point ?: fix?.point
             if (target != null) {
-                mapView.controller.setCenter(target.toOsm())
+                map?.moveCamera(CameraUpdateFactory.newLatLngZoom(target.toLatLng(), DEFAULT_ZOOM))
                 centeredOnce = true
             }
         }
-        mapView.invalidate()
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -256,7 +367,7 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
                 val spot = ui.spot
                 DropdownMenuItem(
                     text = { Text(if (online) "Save area for offline" else "Save area for offline (needs internet)") },
-                    enabled = spot != null && online,
+                    enabled = spot != null && online && progress == null,
                     onClick = {
                         menuOpen = false
                         val plan = spot?.let { OfflineAreaPlanner.plan(it.point) }
@@ -264,21 +375,11 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Clear map cache") },
+                    text = { Text("Saved offline areas") },
                     onClick = {
                         menuOpen = false
-                        scope.launch {
-                            val ok = withContext(Dispatchers.IO) { purgeTileCache(mapView) }
-                            mapView.tileProvider.clearTileCache()
-                            mapView.invalidate()
-                            notice = if (ok) "Map cache cleared." else "Couldn't clear the map cache."
-                        }
+                        scope.launch { savedList = regions.list() }
                     },
-                )
-                DropdownMenuItem(
-                    text = { Text(cacheInfo?.label ?: "Cached map: …", style = MaterialTheme.typography.bodySmall) },
-                    enabled = false,
-                    onClick = {},
                 )
             }
         }
@@ -290,11 +391,13 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
         ) {
             if (ui.fix != null) {
                 SmallFloatingActionButton(onClick = {
-                    ui.fix?.let { mapView.controller.animateTo(it.point.toOsm()) }
+                    ui.fix?.let { map?.animateCamera(CameraUpdateFactory.newLatLng(it.point.toLatLng())) }
                 }) { Icon(Icons.Filled.MyLocation, "Center on me") }
             }
             ui.spot?.let { spot ->
-                FloatingActionButton(onClick = { mapView.controller.animateTo(spot.point.toOsm()) }) {
+                FloatingActionButton(onClick = {
+                    map?.animateCamera(CameraUpdateFactory.newLatLng(spot.point.toLatLng()))
+                }) {
                     Icon(Icons.Filled.DirectionsCar, "Center on car")
                 }
                 ExtendedFloatingActionButton(
@@ -305,13 +408,15 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
             }
         }
 
+        // MapLibre's own (i) attribution button lists the style's sources; this keeps the
+        // required credit visible at all times as well.
         Text(
-            MapTiles.ATTRIBUTION,
+            MapStyle.ATTRIBUTION,
             style = MaterialTheme.typography.labelSmall,
             color = Color.Black,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(6.dp)
+                .padding(start = 6.dp, bottom = 34.dp)
                 .background(Color.White.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 4.dp, vertical = 2.dp),
         )
@@ -322,32 +427,30 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
                 title = { Text("Save area for offline?") },
                 text = {
                     Text(
-                        "Downloads ${plan.tileCount} map tiles (zoom ${plan.minZoom}–${plan.maxZoom}) covering about " +
-                            "1 km around your car, so the map works without signal.\n\n" +
-                            "Map data ${MapTiles.ATTRIBUTION}. Saves are limited to ${OfflineAreaPlanner.MAX_TILES} " +
-                            "tiles to respect the OpenStreetMap tile usage policy."
+                        "Downloads the map (zoom ${plan.minZoom}–${plan.maxZoom}) for about 1 km around your " +
+                            "car, so it works without signal. Usually a few MB.\n\n" +
+                            "Map data ${MapStyle.ATTRIBUTION}."
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         confirmPlan = null
-                        progress = DownloadProgress(0, plan.tileCount)
-                        val result = downloader.start(
-                            context, plan,
+                        val spot = ui.spot ?: return@TextButton
+                        progress = DownloadProgress(0, 0)
+                        regions.start(
+                            name = offlineAreaName(spot),
+                            plan = plan,
+                            pixelRatio = density,
                             onProgress = { done, total -> progress = DownloadProgress(done, total) },
-                            onFinished = { failed ->
+                            onFinished = { error ->
                                 progress = null
-                                notice = if (failed == 0) {
+                                notice = if (error == null) {
                                     "Area saved for offline use."
                                 } else {
-                                    "Saved, but $failed tiles failed to download."
+                                    "Couldn't save the area: $error"
                                 }
                             },
                         )
-                        if (result is OfflineAreaDownloader.StartResult.Refused) {
-                            progress = null
-                            notice = result.reason
-                        }
                     }) { Text("Download") }
                 },
                 dismissButton = { TextButton(onClick = { confirmPlan = null }) { Text("Cancel") } },
@@ -361,19 +464,57 @@ fun MapScreen(spotId: Long, onGuide: (Long) -> Unit) {
                 title = { Text("Saving map area") },
                 text = {
                     Column {
-                        val fraction = if (p.total > 0) (p.done.toFloat() / p.total).coerceIn(0f, 1f) else 0f
-                        LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                        if (p.total > 0) {
+                            val fraction = (p.done.toFloat() / p.total).coerceIn(0f, 1f)
+                            LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                        } else {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
                         Spacer(Modifier.height(8.dp))
-                        Text("${p.done} / ${p.total} tiles")
+                        Text(if (p.total > 0) "${p.done} / ${p.total} resources" else "Starting…")
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        downloader.cancel()
+                        regions.cancel()
                         progress = null
-                        notice = "Download cancelled. Tiles already saved stay cached."
+                        notice = "Download cancelled."
                     }) { Text("Cancel") }
                 },
+            )
+        }
+
+        savedList?.let { list ->
+            AlertDialog(
+                onDismissRequest = { savedList = null },
+                title = { Text("Saved offline areas") },
+                text = {
+                    if (list.isEmpty()) {
+                        Text("No areas saved yet. Use \"Save area for offline\" while online.")
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            list.forEach { r ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(r.name, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            formatBytes(r.sizeBytes) + if (r.complete) "" else " · incomplete",
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        scope.launch {
+                                            val ok = regions.delete(r)
+                                            if (!ok) notice = "Couldn't delete that area."
+                                            savedList = regions.list()
+                                        }
+                                    }) { Icon(Icons.Filled.Delete, "Delete ${r.name}") }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { savedList = null }) { Text("Close") } },
             )
         }
 
@@ -421,7 +562,7 @@ private fun OfflineBanner() {
         Icon(Icons.Filled.CloudOff, null, tint = MaterialTheme.colorScheme.onErrorContainer)
         Spacer(Modifier.width(6.dp))
         Text(
-            "Offline — showing cached map",
+            "Offline — showing saved map areas",
             color = MaterialTheme.colorScheme.onErrorContainer,
             style = MaterialTheme.typography.labelLarge,
         )
