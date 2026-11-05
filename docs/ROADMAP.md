@@ -1,34 +1,34 @@
 # ParkPin Roadmap
 
 ## Phase 0 — Foundation (this session)
-- [ ] Gradle project, version catalog, offline-capable build toolchain
-- [ ] Pure-Kotlin domain (GeoMath, ArrivalDetector, AccuracyFilter) + JVM unit tests
-- [ ] Room DB, repositories, DataStore settings
-- [ ] Location providers (Fused + platform fallback), compass sensor
+- [x] Gradle project, version catalog, offline-capable build toolchain
+- [x] Pure-Kotlin domain (GeoMath, ArrivalDetector, AccuracyFilter) + JVM unit tests
+- [x] Room DB, repositories, DataStore settings
+- [x] Location providers (Fused + platform fallback), compass sensor
 
 ## Phase 1 — MVP "Drop pin, walk back"
-- [ ] Home: one-tap "I parked here" (best-of-N GPS fix, accuracy shown)
-- [ ] Guide screen: compass arrow, distance, walking ETA, cardinal direction, arrival haptic
-- [ ] Map screen (MapLibre + OpenFreeMap): car + user markers, straight-line path, cached tiles offline
-- [ ] History: list, re-guide, delete
-- [ ] Runtime permission flow (fine/coarse, camera, notifications on 33+)
+- [x] Home: one-tap "I parked here" (best-of-N GPS fix, accuracy shown)
+- [x] Guide screen: compass arrow, distance, walking ETA, cardinal direction, arrival haptic
+- [x] Map screen (MapLibre + OpenFreeMap): car + user markers, straight-line path, cached tiles offline
+- [x] History: list, re-guide, delete
+- [x] Runtime permission flow (fine/coarse, camera, notifications on 33+)
 
 ## Phase 2 — "Real-World Magic" AR
-- [ ] AR guide: CameraX preview + floating pin anchored by bearing/pitch, distance label
-- [ ] Off-screen indicator (edge arrow when car is behind you)
-- [ ] Compass calibration prompt (figure-8) when sensor accuracy low
+- [x] AR guide: CameraX preview + floating pin anchored by bearing/pitch, distance label
+- [x] Off-screen indicator (edge arrow when car is behind you)
+- [x] Compass calibration prompt (figure-8) when sensor accuracy low
 
 ## Phase 3 — Context & convenience (suggestions)
-- [ ] Spot details: note ("P2, row C"), floor label, photo of the pillar sign
-- [ ] Parking meter timer + reminder notification (WorkManager), "time left" chip
-- [ ] Quick Settings tile + home-screen widget: save spot without opening app
-- [ ] Share spot as `geo:` URI / text for family
-- [ ] Auto-save on car Bluetooth disconnect (user picks car BT device)
+- [x] Spot details: note ("P2, row C"), floor label, photo of the pillar sign
+- [x] Parking meter timer + reminder notification (WorkManager), "time left" chip
+- [x] Quick Settings tile + home-screen widget: save spot without opening app
+- [x] Share spot as `geo:` URI / text for family
+- [x] Auto-save on car Bluetooth disconnect (user picks car BT device)
 - [ ] Activity Recognition: detect IN_VEHICLE → WALKING transition, suggest save
 
 ## Phase 4 — Hard environments
-- [ ] Underground garages: save last good outdoor fix + barometer altitude delta for floor estimate
-- [ ] Dead-reckoning (step counter + heading) when GPS lost indoors
+- [x] Underground garages: save last good outdoor fix + barometer altitude delta for floor estimate
+- [x] Dead-reckoning (step counter + heading) when GPS lost indoors
 - [ ] ARCore Geospatial API (VPS) for centimeter-ish anchoring where Street View coverage exists (needs network — opt-in)
 - [x] Offline map region download (MapLibre `OfflineManager`, ~1 km box around the spot, z14-17, OpenFreeMap; never tile.openstreetmap.org)
 
