@@ -102,7 +102,9 @@ class MeterReminderSchedulerTest {
         val pending = infos(8).filter { !it.state.isFinished }
         assertEquals(1, pending.size)
         assertTrue(pending.single().id != firstId)
-        assertEquals(WorkInfo.State.CANCELLED, workManager.getWorkInfoById(firstId).get()!!.state)
+        // The replaced request is cancelled (or already pruned).
+        val old = workManager.getWorkInfoById(firstId).get()
+        assertTrue(old == null || old.state == WorkInfo.State.CANCELLED)
     }
 
     @Test

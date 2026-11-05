@@ -45,6 +45,8 @@ class PlatformLocationProviderTest {
             latitude = lat
             longitude = lng
             time = timeMs
+            // ShadowLocationManager enforces minTimeMs using elapsed realtime.
+            elapsedRealtimeNanos = timeMs * 1_000_000L
             accuracy?.let { this.accuracy = it }
         }
 
@@ -96,7 +98,11 @@ class PlatformLocationProviderTest {
         deliver(location(LocationManager.NETWORK_PROVIDER, 51.7, -0.14, timeMs = 15_000))
         runCurrent()
 
-        assertEquals(listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER), fixes.map { it.provider })
+        assertEquals(
+            fixes.toString(),
+            listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER),
+            fixes.map { it.provider },
+        )
         assertEquals(51.7, fixes.last().point.lat, 1e-9)
         job.cancel()
     }
